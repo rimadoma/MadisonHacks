@@ -6,16 +6,13 @@ import net.imagej.ops.Op;
 import net.imagej.ops.OpService;
 import net.imglib2.FinalDimensions;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
-import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.logic.BitType;
 import org.scijava.ItemIO;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import java.util.Arrays;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 /**
@@ -26,38 +23,59 @@ import java.util.stream.LongStream;
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")
 public class WireFrameCuboidCreator extends AbstractOp {
-    private long[] cuboidLocation;
+    private long[] cuboidLocation = null;
+    private long u0 = 0;
+    private long u1 = 0;
+    private long v0 = 0;
+    private long v1 = 0;
+    private long w0 = 0;
+    private long w1 = 0;
+    private long paddedUSize = 0;
+    private long paddedVSize = 0;
+    private long paddedWSize = 0;
 
     @Parameter
     OpService opService;
 
     @Parameter(type = ItemIO.INPUT)
-    private long size0 = 0;
+    private long uSize = 0;
 
     @Parameter(type = ItemIO.INPUT)
-    private long size1 = 0;
+    private long vSize = 0;
 
     @Parameter(type = ItemIO.INPUT)
-    private long size2 = 0;
+    private long wSize = 0;
+
+    @Parameter(type = ItemIO.INPUT, required = false)
+    private long padding = 0;
 
     @Parameter(type = ItemIO.OUTPUT)
     private Img<BitType> cuboid;
 
     @Override
     public void run() {
-        cuboid = opService.create().img(new FinalDimensions(size0, size1, size2), new BitType());
+        paddedUSize = uSize + 2 * padding;
+        paddedVSize = vSize + 2 * padding;
+        paddedWSize = wSize + 2 * padding;
+
+        cuboid = opService.create().img(new FinalDimensions(paddedUSize, paddedVSize, paddedWSize), new BitType());
         cuboidLocation = new long[cuboid.numDimensions()];
 
-        drawRect(0);
+        u0 = padding;
+        u1 = padding + uSize - 1;
+        v0 = padding;
+        v1 = padding + vSize - 1;
+        w0 = padding;
+        w1 = padding + wSize - 1;
 
-        LongStream.range(0, size2).forEach(this::drawCorners);
-
-        drawRect(size2 - 1);
+        drawRect(w0); // draw front face
+        LongStream.range(w0 + 1, w1).forEach(this::drawCorners); // draw connecting edges
+        drawRect(w1); // draw back face
     }
 
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
-        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, 100, 100, 10);
+        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, 100, 100, 10, 5);
         ij.ui().show(cuboid);
     }
 
@@ -66,14 +84,14 @@ public class WireFrameCuboidCreator extends AbstractOp {
         System.arraycopy(location, 0, cuboidLocation, 0, location.length);
     }
 
-    private void drawRect(final long plane) {
-        setCuboidLocation(0, 0, plane);
-        drawLine(0, size0);
-        drawLine(1, size1);
-        setCuboidLocation(0, size1 - 1, plane);
-        drawLine(0, size0);
-        setCuboidLocation(size0 - 1, 0, plane);
-        drawLine(1, size1);
+    private void drawRect(final long w) {
+        setCuboidLocation(u0, v0, w);
+        drawLine(0, uSize);
+        drawLine(1, vSize);
+        setCuboidLocation(u0, v1, w);
+        drawLine(0, uSize);
+        setCuboidLocation(u1, v0, w);
+        drawLine(1, vSize);
     }
 
     private void drawLine(final int moveDim, final long length) {
@@ -89,13 +107,13 @@ public class WireFrameCuboidCreator extends AbstractOp {
     }
 
     private void drawCorners(final long plane) {
-        setCuboidLocation(0, 0, plane);
+        setCuboidLocation(u0, v0, plane);
         drawLine(0, 1);
-        setCuboidLocation(0, size1 - 1, plane);
+        setCuboidLocation(u1, v0, plane);
         drawLine(0, 1);
-        setCuboidLocation(size0 - 1, size1 - 1, plane);
+        setCuboidLocation(u1, v1, plane);
         drawLine(0, 1);
-        setCuboidLocation(size0 - 1, 0, plane);
+        setCuboidLocation(u0, v1, plane);
         drawLine(0, 1);
     }
 }
