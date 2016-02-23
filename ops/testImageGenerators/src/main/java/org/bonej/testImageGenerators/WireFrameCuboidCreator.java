@@ -3,7 +3,11 @@ package org.bonej.testImageGenerators;
 import net.imagej.ImageJ;
 import net.imagej.ops.Op;
 import net.imagej.ops.OpService;
-import net.imagej.ops.special.AbstractNullaryFunctionOp;
+import net.imagej.ops.Ops;
+import net.imagej.ops.special.function.BinaryFunctionOp;
+import net.imagej.ops.special.function.Functions;
+import net.imagej.ops.special.hybrid.AbstractNullaryHybridCF;
+import net.imglib2.Dimensions;
 import net.imglib2.FinalDimensions;
 import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
@@ -18,7 +22,7 @@ import org.scijava.plugin.Plugin;
  * @author Richard Domander
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")
-public class WireFrameCuboidCreator extends AbstractNullaryFunctionOp<Img<BitType>> {
+public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>> {
     @Parameter
     private OpService opService;
 
@@ -34,32 +38,34 @@ public class WireFrameCuboidCreator extends AbstractNullaryFunctionOp<Img<BitTyp
     @Parameter(required = false)
     private long padding;
 
+    private BinaryFunctionOp<Dimensions, BitType, Img<BitType>> createImgOp;
+
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
         Object cuboid = ij.op().run(WireFrameCuboidCreator.class, 100, 100, 10, 5);
         ij.ui().show(cuboid);
     }
 
-    private void drawCuboidEdges(Img<BitType> cuboid, long[] cuboidLocation, CuboidInfo cuboidInfo) {
-        setCuboidLocation(cuboidLocation, cuboidInfo.u0, cuboidInfo.v0, cuboidInfo.w0);
+    private void drawCuboidEdges(Img<BitType> cuboid, long[] cuboidLocation, CuboidInfo info) {
+        setCuboidLocation(cuboidLocation, info.u0, info.v0, info.w0);
         drawLine(cuboid, cuboidLocation, 0, uSize);
         drawLine(cuboid, cuboidLocation, 1, vSize);
         drawLine(cuboid, cuboidLocation, 2, wSize);
-        setCuboidLocation(cuboidLocation, cuboidInfo.u1, cuboidInfo.v0, cuboidInfo.w0);
+        setCuboidLocation(cuboidLocation, info.u1, info.v0, info.w0);
         drawLine(cuboid, cuboidLocation, 1, vSize);
         drawLine(cuboid, cuboidLocation, 2, wSize);
-        setCuboidLocation(cuboidLocation, cuboidInfo.u1, cuboidInfo.v1, cuboidInfo.w0);
+        setCuboidLocation(cuboidLocation, info.u1, info.v1, info.w0);
         drawLine(cuboid, cuboidLocation, 2, wSize);
-        setCuboidLocation(cuboidLocation, cuboidInfo.u0, cuboidInfo.v1, cuboidInfo.w0);
+        setCuboidLocation(cuboidLocation, info.u0, info.v1, info.w0);
         drawLine(cuboid, cuboidLocation, 0, vSize);
         drawLine(cuboid, cuboidLocation, 2, wSize);
 
-        setCuboidLocation(cuboidLocation, cuboidInfo.u0, cuboidInfo.v0, cuboidInfo.w1);
+        setCuboidLocation(cuboidLocation, info.u0, info.v0, info.w1);
         drawLine(cuboid, cuboidLocation, 0, uSize);
         drawLine(cuboid, cuboidLocation, 1, vSize);
-        setCuboidLocation(cuboidLocation, cuboidInfo.u1, cuboidInfo.v0, cuboidInfo.w1);
+        setCuboidLocation(cuboidLocation, info.u1, info.v0, info.w1);
         drawLine(cuboid, cuboidLocation, 1, vSize);
-        setCuboidLocation(cuboidLocation, cuboidInfo.u0, cuboidInfo.v1, cuboidInfo.w1);
+        setCuboidLocation(cuboidLocation, info.u0, info.v1, info.w1);
         drawLine(cuboid, cuboidLocation, 0, vSize);
     }
 
@@ -80,15 +86,25 @@ public class WireFrameCuboidCreator extends AbstractNullaryFunctionOp<Img<BitTyp
     }
 
     @Override
-    public Img<BitType> compute0() {
-        final CuboidInfo cuboidInfo = new CuboidInfo(uSize, vSize, wSize, padding);
-        final Img<BitType> cuboid = opService.create().img(new FinalDimensions(cuboidInfo.paddedUSize,
-                cuboidInfo.paddedVSize, cuboidInfo.paddedWSize), new BitType());
+    public void initialize() {
+         createImgOp = (BinaryFunctionOp) Functions.binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class,
+                 BitType.class);
+    }
+
+    @Override
+    public void compute0(Img<BitType> cuboid) {
+        final CuboidInfo info = new CuboidInfo(uSize, vSize, wSize, padding);
+
         final long[] cuboidLocation = new long[cuboid.numDimensions()];
 
-        drawCuboidEdges(cuboid, cuboidLocation, cuboidInfo);
+        drawCuboidEdges(cuboid, cuboidLocation, info);
+    }
 
-        return cuboid;
+    @Override
+    public Img<BitType> createOutput() {
+        final CuboidInfo info = new CuboidInfo(uSize, vSize, wSize, padding);
+        return createImgOp.compute2(new FinalDimensions(info.paddedUSize, info.paddedVSize, info.paddedWSize),
+                new BitType());
     }
 
     private final static class CuboidInfo {

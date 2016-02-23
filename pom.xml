@@ -36,6 +36,12 @@
         </dependency>
 
         <dependency>
+            <groupId>net.imagej</groupId>
+            <artifactId>imagej-ops</artifactId>
+            <version>LATEST</version>
+        </dependency>
+
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>RELEASE</version>
