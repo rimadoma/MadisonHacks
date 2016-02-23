@@ -1,4 +1,4 @@
-package org.bonej.testImageGenerators;
+package org.bonej.ops.testImageGenerators;
 
 import net.imagej.ImageJ;
 import net.imagej.ops.Op;
