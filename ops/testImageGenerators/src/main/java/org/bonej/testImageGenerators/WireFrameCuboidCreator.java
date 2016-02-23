@@ -12,9 +12,6 @@ import org.scijava.ItemIO;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
-import java.util.Arrays;
-import java.util.stream.LongStream;
-
 /**
  * An Op which draws a wire-frame cuboid.
  * Can be used, e.g. for testing other Ops or Plugins.
@@ -23,31 +20,31 @@ import java.util.stream.LongStream;
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")
 public class WireFrameCuboidCreator extends AbstractOp {
-    private long[] cuboidLocation = null;
-    private long u0 = 0;
-    private long u1 = 0;
-    private long v0 = 0;
-    private long v1 = 0;
-    private long w0 = 0;
-    private long w1 = 0;
-    private long paddedUSize = 0;
-    private long paddedVSize = 0;
-    private long paddedWSize = 0;
+    private long[] cuboidLocation;
+    private long u0;
+    private long u1;
+    private long v0;
+    private long v1;
+    private long w0;
+    private long w1;
+    private long paddedUSize;
+    private long paddedVSize;
+    private long paddedWSize;
 
     @Parameter
-    OpService opService;
+    private OpService opService;
 
-    @Parameter(type = ItemIO.INPUT)
-    private long uSize = 0;
+    @Parameter
+    private long uSize;
 
-    @Parameter(type = ItemIO.INPUT)
-    private long vSize = 0;
+    @Parameter
+    private long vSize;
 
-    @Parameter(type = ItemIO.INPUT)
-    private long wSize = 0;
+    @Parameter
+    private long wSize;
 
-    @Parameter(type = ItemIO.INPUT, required = false)
-    private long padding = 0;
+    @Parameter(required = false)
+    private long padding;
 
     @Parameter(type = ItemIO.OUTPUT)
     private Img<BitType> cuboid;
