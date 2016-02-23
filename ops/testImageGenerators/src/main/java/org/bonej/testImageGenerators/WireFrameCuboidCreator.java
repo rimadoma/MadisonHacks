@@ -2,7 +2,6 @@ package org.bonej.testImageGenerators;
 
 import net.imagej.ImageJ;
 import net.imagej.ops.Op;
-import net.imagej.ops.OpService;
 import net.imagej.ops.Ops;
 import net.imagej.ops.special.function.BinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
@@ -24,9 +23,6 @@ import org.scijava.plugin.Plugin;
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")
 public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>> {
     @Parameter
-    private OpService opService;
-
-    @Parameter
     private long uSize;
 
     @Parameter
@@ -42,31 +38,32 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
 
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
-        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, 100, 100, 10, 5);
+        // Call the hybrid op without a ready buffer (null)
+        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 100, 100, 10, 5);
         ij.ui().show(cuboid);
     }
 
-    private void drawCuboidEdges(Img<BitType> cuboid, long[] cuboidLocation, CuboidInfo info) {
-        setCuboidLocation(cuboidLocation, info.u0, info.v0, info.w0);
-        drawLine(cuboid, cuboidLocation, 0, uSize);
-        drawLine(cuboid, cuboidLocation, 1, vSize);
-        drawLine(cuboid, cuboidLocation, 2, wSize);
-        setCuboidLocation(cuboidLocation, info.u1, info.v0, info.w0);
-        drawLine(cuboid, cuboidLocation, 1, vSize);
-        drawLine(cuboid, cuboidLocation, 2, wSize);
-        setCuboidLocation(cuboidLocation, info.u1, info.v1, info.w0);
-        drawLine(cuboid, cuboidLocation, 2, wSize);
-        setCuboidLocation(cuboidLocation, info.u0, info.v1, info.w0);
-        drawLine(cuboid, cuboidLocation, 0, vSize);
-        drawLine(cuboid, cuboidLocation, 2, wSize);
+    private void drawCuboidEdges(Img<BitType> cuboid, CuboidInfo info) {
+        setCuboidLocation(info.cuboidLocation, info.u0, info.v0, info.w0);
+        drawLine(cuboid, info.cuboidLocation, 0, uSize);
+        drawLine(cuboid, info.cuboidLocation, 1, vSize);
+        drawLine(cuboid, info.cuboidLocation, 2, wSize);
+        setCuboidLocation(info.cuboidLocation, info.u1, info.v0, info.w0);
+        drawLine(cuboid, info.cuboidLocation, 1, vSize);
+        drawLine(cuboid, info.cuboidLocation, 2, wSize);
+        setCuboidLocation(info.cuboidLocation, info.u1, info.v1, info.w0);
+        drawLine(cuboid, info.cuboidLocation, 2, wSize);
+        setCuboidLocation(info.cuboidLocation, info.u0, info.v1, info.w0);
+        drawLine(cuboid, info.cuboidLocation, 0, vSize);
+        drawLine(cuboid, info.cuboidLocation, 2, wSize);
 
-        setCuboidLocation(cuboidLocation, info.u0, info.v0, info.w1);
-        drawLine(cuboid, cuboidLocation, 0, uSize);
-        drawLine(cuboid, cuboidLocation, 1, vSize);
-        setCuboidLocation(cuboidLocation, info.u1, info.v0, info.w1);
-        drawLine(cuboid, cuboidLocation, 1, vSize);
-        setCuboidLocation(cuboidLocation, info.u0, info.v1, info.w1);
-        drawLine(cuboid, cuboidLocation, 0, vSize);
+        setCuboidLocation(info.cuboidLocation, info.u0, info.v0, info.w1);
+        drawLine(cuboid, info.cuboidLocation, 0, uSize);
+        drawLine(cuboid, info.cuboidLocation, 1, vSize);
+        setCuboidLocation(info.cuboidLocation, info.u1, info.v0, info.w1);
+        drawLine(cuboid, info.cuboidLocation, 1, vSize);
+        setCuboidLocation(info.cuboidLocation, info.u0, info.v1, info.w1);
+        drawLine(cuboid, info.cuboidLocation, 0, vSize);
     }
 
     private void setCuboidLocation(final long[] cuboidLocation, final long... location) {
@@ -87,23 +84,23 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
 
     @Override
     public void initialize() {
-         createImgOp = (BinaryFunctionOp) Functions.binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class,
+        // match an Op which creates an Img from Dimensions and Type
+        createImgOp = (BinaryFunctionOp) Functions.binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class,
                  BitType.class);
     }
 
     @Override
     public void compute0(Img<BitType> cuboid) {
-        final CuboidInfo info = new CuboidInfo(uSize, vSize, wSize, padding);
-
-        final long[] cuboidLocation = new long[cuboid.numDimensions()];
-
-        drawCuboidEdges(cuboid, cuboidLocation, info);
+        final CuboidInfo info = new CuboidInfo(cuboid.numDimensions(), uSize, vSize, wSize, padding);
+        drawCuboidEdges(cuboid, info);
     }
 
     @Override
     public Img<BitType> createOutput() {
-        final CuboidInfo info = new CuboidInfo(uSize, vSize, wSize, padding);
-        return createImgOp.compute2(new FinalDimensions(info.paddedUSize, info.paddedVSize, info.paddedWSize),
+        long paddedUSize = uSize + 2 * padding;
+        long paddedVSize = vSize + 2 * padding;
+        long paddedWSize = wSize + 2 * padding;
+        return createImgOp.compute2(new FinalDimensions(paddedUSize, paddedVSize, paddedWSize),
                 new BitType());
     }
 
@@ -117,8 +114,10 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
         public long paddedUSize;
         public long paddedVSize;
         public long paddedWSize;
+        public long[] cuboidLocation;
 
-        CuboidInfo(final long uSize, final long vSize, final long wSize, final long padding) {
+        CuboidInfo(int dimensions, final long uSize, final long vSize, final long wSize, final long padding) {
+            cuboidLocation = new long[dimensions];
             u0 = padding;
             u1 = padding + uSize - 1;
             v0 = padding;
