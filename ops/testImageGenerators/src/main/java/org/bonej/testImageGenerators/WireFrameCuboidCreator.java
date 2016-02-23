@@ -68,9 +68,7 @@ public class WireFrameCuboidCreator extends AbstractOp {
         w0 = padding;
         w1 = padding + wSize - 1;
 
-        drawRect(w0); // draw front face
-        LongStream.range(w0 + 1, w1).forEach(this::drawCorners); // draw connecting edges
-        drawRect(w1); // draw back face
+        drawCuboidEdges();
     }
 
     public static void main(String... args) {
@@ -79,19 +77,31 @@ public class WireFrameCuboidCreator extends AbstractOp {
         ij.ui().show(cuboid);
     }
 
-    private void setCuboidLocation(long... location) {
-        Arrays.fill(cuboidLocation, 0);
-        System.arraycopy(location, 0, cuboidLocation, 0, location.length);
+    private void drawCuboidEdges() {
+        setCuboidLocation(u0, v0, w0);
+        drawLine(0, uSize);
+        drawLine(1, vSize);
+        drawLine(2, wSize);
+        setCuboidLocation(u1, v0, w0);
+        drawLine(1, vSize);
+        drawLine(2, wSize);
+        setCuboidLocation(u1, v1, w0);
+        drawLine(2, wSize);
+        setCuboidLocation(u0, v1, w0);
+        drawLine(0, vSize);
+        drawLine(2, wSize);
+
+        setCuboidLocation(u0, v0, w1);
+        drawLine(0, uSize);
+        drawLine(1, vSize);
+        setCuboidLocation(u1, v0, w1);
+        drawLine(1, vSize);
+        setCuboidLocation(u0, v1, w1);
+        drawLine(0, vSize);
     }
 
-    private void drawRect(final long w) {
-        setCuboidLocation(u0, v0, w);
-        drawLine(0, uSize);
-        drawLine(1, vSize);
-        setCuboidLocation(u0, v1, w);
-        drawLine(0, uSize);
-        setCuboidLocation(u1, v0, w);
-        drawLine(1, vSize);
+    private void setCuboidLocation(long... location) {
+        System.arraycopy(location, 0, cuboidLocation, 0, location.length);
     }
 
     private void drawLine(final int moveDim, final long length) {
@@ -104,16 +114,5 @@ public class WireFrameCuboidCreator extends AbstractOp {
             randomAccess.fwd(moveDim);
             counter++;
         }
-    }
-
-    private void drawCorners(final long plane) {
-        setCuboidLocation(u0, v0, plane);
-        drawLine(0, 1);
-        setCuboidLocation(u1, v0, plane);
-        drawLine(0, 1);
-        setCuboidLocation(u1, v1, plane);
-        drawLine(0, 1);
-        setCuboidLocation(u0, v1, plane);
-        drawLine(0, 1);
     }
 }
