@@ -19,7 +19,7 @@
     <parent>
         <groupId>net.imagej</groupId>
         <artifactId>pom-imagej</artifactId>
-        <version>RELEASE</version>
+        <version>14.4.1</version>
     </parent>
 
     <repositories>
@@ -38,26 +38,26 @@
         <dependency>
             <groupId>net.imagej</groupId>
             <artifactId>imagej-ops</artifactId>
-            <version>LATEST</version>
+            <!-- temp fix for special ops -->
+            <version>0.25.0</version>
         </dependency>
 
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>RELEASE</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>RELEASE</version>
         </dependency>
 
         <!-- javax.annotation.* in here-->
         <dependency>
             <groupId>net.sourceforge.findbugs</groupId>
             <artifactId>jsr305</artifactId>
-            <version>RELEASE</version>
+            <version>1.3.7</version>
         </dependency>
     </dependencies>
 </project>

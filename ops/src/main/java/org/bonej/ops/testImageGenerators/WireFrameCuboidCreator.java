@@ -39,6 +39,7 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
         // Call the hybrid op without a ready buffer (null)
+        System.out.print(ij.op().help("wireFrameCuboidCreator"));
         Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 100, 100, 10, 5);
         ij.ui().show(cuboid);
     }

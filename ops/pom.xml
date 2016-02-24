@@ -11,7 +11,6 @@
 
     <groupId>org.bonej.ops</groupId>
     <artifactId>ops</artifactId>
-    <packaging>pom</packaging>
     <build>
         <plugins>
             <plugin>
@@ -24,9 +23,4 @@
             </plugin>
         </plugins>
     </build>
-    <modules>
-        <module>testImageGenerators</module>
-    </modules>
-
-
 </project>
