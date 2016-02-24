@@ -2,9 +2,7 @@ package org.bonej.ops.connectivity;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BitType;
-import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
 /**

@@ -11,12 +11,34 @@ import org.scijava.plugin.Plugin;
 import java.util.Arrays;
 
 /**
- * An Op which determines the number of connected structures in an interval
- * by calculating the Euler characteristic. The Euler characteristic is
- * determined from special 8-neighborhoods of the elements. The Op assumes that
- * there is only one continuous foreground structure in the interval.
+ * An Op which determines the number of connected structures in an ImgPlus image
+ * by calculating the Euler characteristics of its elements.
+ * The euler characteristic of an element is determined from its special 8-neighborhood.
+ * The euler characteristics of the elements are summed the get the characteristic of the whole particle.
+ * The Op assumes that there is only one continuous foreground particle in the image.
  *
+ * @author Michael Doube
  * @author Richard Domander
+ *
+ *         The algorithms here are based on the following articles:
+ *         Toriwaki J, Yonekura T (2002) Euler Number and Connectivity Indexes of a
+ *         Three Dimensional Digital Picture. Forma 17: 183-209.
+ *         <a href="http://www.scipress.org/journals/forma/abstract/1703/17030183.html">
+ *         http://www.scipress.org/journals/forma/abstract/1703/17030183.html</a>
+ *
+ *         Odgaard A, Gundersen HJG (1993) Quantification of connectivity in
+ *         cancellous bone, with special emphasis on 3-D reconstructions. Bone 14:
+ *         173-182.
+ *         <a href="http://dx.doi.org/10.1016/8756-3282(93)90245-6">doi:10.1016/8756-3282(93)90245-6</a>
+ *
+ *         Lee TC, Kashyap RL, Chu CN (1994) Building Skeleton Models via 3-D
+ *         Medial Surface Axis Thinning Algorithms. CVGIP: Graphical Models and
+ *         Image Processing 56: 462-478.
+ *         <a href="http://dx.doi.org/10.1006/cgip.1994.1042">doi:10.1006/cgip.1994.1042</a>
+ *
+ *         Several of the methods are based on Ignacio Arganda-Carreras's
+ *         Skeletonize3D_ plugin: <a href="http://imagejdocu.tudor.lu/doku.php?id=plugin:morphology:skeletonize3d:start">
+ *         Skeletonize3D homepage</a>
  */
 @Plugin(type = Op.class, name = "connectivityCharacteristics")
 public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Connectivity.Characteristics>
@@ -149,19 +171,19 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     //endregion
 
     @Override
-    public Characteristics compute1(final ImgPlus<BitType> interval) {
+    public Characteristics compute1(final ImgPlus<BitType> imgPlus) {
         /** Euler characteristic of the sample as though floating in space (χ). */
-        double eulerCharacteristic = calculateEulerCharacteristic(interval);
+        double eulerCharacteristic = calculateEulerCharacteristic(imgPlus);
 
         /** Δ(χ): the sample's contribution to the Euler characteristic of the structure to which it was connected.
-         * Calculated by counting the intersections of elements, and the edges of the interval. */
-        double deltaChi = calculateDeltaChi(interval, eulerCharacteristic);
+         * Calculated by counting the intersections of elements, and the edges of the imgPlus. */
+        double deltaChi = calculateDeltaChi(imgPlus, eulerCharacteristic);
 
-        /** The connectivity of the image = 1 - Δ(χ) */
+        /** The connectivity of the sample = 1 - Δ(χ) */
         double connectivity = 1 - deltaChi;
 
-        /** The connectivity density of the image = connectivity / calibratedIntervalVolume */
-        double connectivityDensity = calculateConnectivityDensity(connectivity, interval);
+        /** The connectivity density of the sample = connectivity / calibratedIntervalVolume */
+        double connectivityDensity = calculateConnectivityDensity(connectivity, imgPlus);
 
         return new Characteristics(eulerCharacteristic, deltaChi, connectivity, connectivityDensity);
     }
@@ -172,15 +194,15 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return in().numDimensions() == 3;
     }
 
-    private double calculateEulerCharacteristic(final ImgPlus<BitType> interval) {
-        final int[] eulerSums = new int[(int) interval.dimension(W_INDEX)];
+    private double calculateEulerCharacteristic(final ImgPlus<BitType> imgPlus) {
+        final int[] eulerSums = new int[(int) imgPlus.dimension(W_INDEX)];
 
-        final Cursor<BitType> cursor = interval.localizingCursor();
+        final Cursor<BitType> cursor = imgPlus.localizingCursor();
         cursor.forEachRemaining(c -> {
             long u = cursor.getLongPosition(U_INDEX);
             long v = cursor.getLongPosition(V_INDEX);
             int w = cursor.getIntPosition(W_INDEX);
-            Octant octant = new Octant(interval, u, v, w);
+            Octant octant = new Octant(imgPlus, u, v, w);
             eulerSums[w] += getDeltaEuler(octant);
         });
 
@@ -233,25 +255,25 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return EULER_LUT[index];
     }
 
-    private double calculateDeltaChi(final ImgPlus<BitType> interval, final double eulerCharacteristic) {
+    private double calculateDeltaChi(final ImgPlus<BitType> img, final double eulerCharacteristic) {
         return 0.0;
     }
 
     /** @implNote elementVolume works correctly only if axes are linear */
-    private double calculateConnectivityDensity(final double connectivity, final ImgPlus<BitType> interval) {
-        final long uSize = interval.dimension(U_INDEX);
-        final long vSize = interval.dimension(V_INDEX);
-        final long wSize = interval.dimension(W_INDEX);
+    private double calculateConnectivityDensity(final double connectivity, final ImgPlus<BitType> imgPlus) {
+        final long uSize = imgPlus.dimension(U_INDEX);
+        final long vSize = imgPlus.dimension(V_INDEX);
+        final long wSize = imgPlus.dimension(W_INDEX);
 
-        final double uElementSize = interval.axis(U_INDEX).averageScale(0, uSize);
-        final double vElementSize = interval.axis(V_INDEX).averageScale(0, vSize);
-        final double wElementSize = interval.axis(W_INDEX).averageScale(0, wSize);
+        final double uElementSize = imgPlus.axis(U_INDEX).averageScale(0, uSize);
+        final double vElementSize = imgPlus.axis(V_INDEX).averageScale(0, vSize);
+        final double wElementSize = imgPlus.axis(W_INDEX).averageScale(0, wSize);
 
         final double elementVolume = uElementSize * vElementSize * wElementSize;
-        final double intervalVolume = uSize * vSize * wSize;
-        final double calibratedIntervalVolume = intervalVolume / elementVolume;
+        final double imgVolume = uSize * vSize * wSize;
+        final double calibratedImgVolume = imgVolume / elementVolume;
 
-        return connectivity / calibratedIntervalVolume;
+        return connectivity / calibratedImgVolume;
     }
 
     public static final class Characteristics {
