@@ -5,6 +5,7 @@ import net.imagej.ops.Contingent;
 import net.imagej.ops.Op;
 import net.imagej.ops.special.function.AbstractUnaryFunctionOp;
 import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
 import net.imglib2.type.logic.BitType;
 import org.scijava.plugin.Plugin;
 
@@ -173,17 +174,19 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     @Override
     public Characteristics compute1(final ImgPlus<BitType> imgPlus) {
         /** Euler characteristic of the sample as though floating in space (χ). */
-        double eulerCharacteristic = calculateEulerCharacteristic(imgPlus);
+        final double eulerCharacteristic = calculateEulerCharacteristic(imgPlus);
+
+        final ConnectivityAccess connectivityAccess = new ConnectivityAccess(imgPlus);
 
         /** Δ(χ): the sample's contribution to the Euler characteristic of the structure to which it was connected.
          * Calculated by counting the intersections of elements, and the edges of the imgPlus. */
-        double deltaChi = calculateDeltaChi(imgPlus, eulerCharacteristic);
+        final double deltaChi = calculateDeltaChi(eulerCharacteristic, connectivityAccess);
 
         /** The connectivity of the sample = 1 - Δ(χ) */
-        double connectivity = 1 - deltaChi;
+        final double connectivity = 1 - deltaChi;
 
         /** The connectivity density of the sample = connectivity / calibratedIntervalVolume */
-        double connectivityDensity = calculateConnectivityDensity(connectivity, imgPlus);
+        final double connectivityDensity = calculateConnectivityDensity(connectivity, connectivityAccess);
 
         return new Characteristics(eulerCharacteristic, deltaChi, connectivity, connectivityDensity);
     }
@@ -198,6 +201,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         final int[] eulerSums = new int[(int) imgPlus.dimension(W_INDEX)];
 
         final Cursor<BitType> cursor = imgPlus.localizingCursor();
+
         cursor.forEachRemaining(c -> {
             long u = cursor.getLongPosition(U_INDEX);
             long v = cursor.getLongPosition(V_INDEX);
@@ -255,27 +259,80 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return EULER_LUT[index];
     }
 
-    private double calculateDeltaChi(final ImgPlus<BitType> img, final double eulerCharacteristic) {
-        return 0.0;
+    private double calculateDeltaChi(final double eulerCharacteristic, final ConnectivityAccess connectivityAccess) {
+        final double edgeCorrection = calculateEdgeCorrection(connectivityAccess);
+        return eulerCharacteristic - edgeCorrection;
     }
 
-    /** @implNote elementVolume works correctly only if axes are linear */
-    private double calculateConnectivityDensity(final double connectivity, final ImgPlus<BitType> imgPlus) {
-        final long uSize = imgPlus.dimension(U_INDEX);
-        final long vSize = imgPlus.dimension(V_INDEX);
-        final long wSize = imgPlus.dimension(W_INDEX);
+    private double calculateEdgeCorrection(final ConnectivityAccess connectivityAccess) {
+        final long chiZero = countForegroundCornerElements(connectivityAccess);
+        final long e = countForegroundEdgeElements(connectivityAccess) + 3 * chiZero;
+        final long c = getStackFaces(connectivityAccess) + 2 * e - 3 * chiZero;
 
-        final double uElementSize = imgPlus.axis(U_INDEX).averageScale(0, uSize);
-        final double vElementSize = imgPlus.axis(V_INDEX).averageScale(0, vSize);
-        final double wElementSize = imgPlus.axis(W_INDEX).averageScale(0, wSize);
+        // there are already 6 * chiZero in 2 * e, so remove 3 * chiZero
 
-        final double elementVolume = uElementSize * vElementSize * wElementSize;
-        final double imgVolume = uSize * vSize * wSize;
+        final long d = getEdgeVertices(connectivityAccess) + chiZero;
+        final long a = getFaceVertices(connectivityAccess);
+        final long b = getFaceEdges(connectivityAccess);
+
+        final double chiOne = d - e;
+        final double chiTwo = a - b + c;
+
+        return chiTwo / 2.0 + chiOne / 4.0 + chiZero / 8.0;
+    }
+
+    private long getFaceEdges(final ConnectivityAccess connectivityAccess) {
+        return 0;
+    }
+
+    private long getFaceVertices(final ConnectivityAccess connectivityAccess) {
+        return 0;
+    }
+
+    private long getEdgeVertices(final ConnectivityAccess connectivityAccess) {
+        return 0;
+    }
+
+    private long getStackFaces(final ConnectivityAccess connectivityAccess) {
+        return 0;
+    }
+
+    private long countForegroundEdgeElements(final ConnectivityAccess connectivityAccess) {
+        long foregroundEdgeElements = 0;
+
+        return foregroundEdgeElements
+    }
+
+    private long countForegroundCornerElements(final ConnectivityAccess connectivityAccess) {
+        long foregroundCorners = 0;
+
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    if (connectivityAccess.access.get().get()) {
+                        foregroundCorners++;
+                    }
+                }
+            }
+        }
+
+        return foregroundCorners;
+    }
+
+    private double calculateConnectivityDensity(final double connectivity,
+                                                final ConnectivityAccess connectivityAccess) {
+        final double elementVolume =
+                connectivityAccess.uElementSize * connectivityAccess.vElementSize * connectivityAccess.wElementSize;
+        final double imgVolume = connectivityAccess.uSize * connectivityAccess.vSize * connectivityAccess.wSize;
         final double calibratedImgVolume = imgVolume / elementVolume;
 
         return connectivity / calibratedImgVolume;
     }
 
+    //region -- Helper classes --
     public static final class Characteristics {
         public double eulerCharacteristic;
         public double deltaChi;
@@ -290,4 +347,43 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
             this.connectivityDensity = connectivityDensity;
         }
     }
+
+    /**
+     * A Convenience class for traversing the plugin's input ImgPlus
+     *
+     * @implNote element sizes are accurate only if axes are linear
+     */
+    private final class ConnectivityAccess {
+        public final RandomAccess<BitType> access;
+        /** The calibrated size of an element in the 1st dimension */
+        public final double uElementSize;
+        public final double vElementSize;
+        public final double wElementSize;
+        /** Number of elements (voxels) in the 1st dimension */
+        public final long uSize;
+        /** Number of elements (voxels) in the 2nd dimension */
+        public final long vSize;
+        /** Number of elements (voxels) in the 3rd dimension */
+        public final long wSize;
+        /** Increment value to jump to the end of 1st dimension */
+        public final long uInc;
+        /** Increment value to jump to the end of 2nd dimension */
+        public final long vInc;
+        /** Increment value to jump to the end of 3rd dimension */
+        public final long wInc;
+
+        public ConnectivityAccess(final ImgPlus<BitType> img) {
+            access = img.randomAccess();
+            uSize = img.dimension(U_INDEX);
+            vSize = img.dimension(V_INDEX);
+            wSize = img.dimension(W_INDEX);
+            uInc = Math.max(1, uSize - 1);
+            vInc = Math.max(1, vSize - 1);
+            wInc = Math.max(1, wSize - 1);
+            uElementSize = img.axis(U_INDEX).averageScale(0, uSize);
+            vElementSize = img.axis(V_INDEX).averageScale(0, vSize);
+            wElementSize = img.axis(W_INDEX).averageScale(0, wSize);
+        }
+    }
+    //endregion
 }
