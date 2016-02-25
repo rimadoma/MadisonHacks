@@ -1,11 +1,13 @@
 package org.bonej.ops.connectivity;
 
 import net.imagej.ImageJ;
-import net.imglib2.img.Img;
+import net.imagej.ImgPlus;
 import net.imglib2.type.logic.BitType;
 import org.bonej.ops.testImageGenerators.WireFrameCuboidCreator;
 import org.junit.AfterClass;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
@@ -13,6 +15,7 @@ import static org.junit.Assert.assertEquals;
  * Unit tests for the Connectivity class
  *
  * @author Richard Domander
+ * @todo write a tests with images that touche the interval boundaries to properly test deltaChi
  */
 public class ConnectivityTest {
     private static final ImageJ ij = new ImageJ();
@@ -25,6 +28,7 @@ public class ConnectivityTest {
 
     /**
      * Use only to check connectivity density result has not changed.
+     *
      * @implNote Does not test deltaChi or connectivity
      */
     @Test
@@ -37,12 +41,14 @@ public class ConnectivityTest {
         final int CUBOID_VOLUME =
                 (CUBOID_WIDTH + TOTAL_PADDING) * (CUBOID_HEIGHT + TOTAL_PADDING) * (CUBOID_DEPTH + TOTAL_PADDING);
 
-        final double ELEMENT_VOLUME = 1.0; //@todo figure how to set axis scale to cuboid
+        final double[] CALIBRATION = {0.2, 0.2, 0.2};
+        final double ELEMENT_VOLUME = Arrays.stream(CALIBRATION).reduce((i, j) -> i * j).getAsDouble();
         final double EXPECTED_CONNECTIVITY = 5.0;
         final double EXPECTED_DENSITY = EXPECTED_CONNECTIVITY / (CUBOID_VOLUME * ELEMENT_VOLUME);
 
-        Img<BitType> cuboid = (Img<BitType>) ij.op()
-                .run(WireFrameCuboidCreator.class, null, CUBOID_WIDTH, CUBOID_HEIGHT, CUBOID_DEPTH, PADDING);
+        ImgPlus<BitType> cuboid = (ImgPlus<BitType>) ij.op()
+                .run(WireFrameCuboidCreator.class, null, CUBOID_WIDTH, CUBOID_HEIGHT, CUBOID_DEPTH, PADDING,
+                        CALIBRATION);
 
         Connectivity.Characteristics results = (Connectivity.Characteristics) ij.op().run(Connectivity.class, cuboid);
         assertEquals(-4.0, results.eulerCharacteristic, ERROR_MARGIN);

@@ -1,6 +1,9 @@
 package org.bonej.ops.testImageGenerators;
 
 import net.imagej.ImageJ;
+import net.imagej.ImgPlus;
+import net.imagej.axis.Axes;
+import net.imagej.axis.AxisType;
 import net.imagej.ops.Op;
 import net.imagej.ops.Ops;
 import net.imagej.ops.special.function.BinaryFunctionOp;
@@ -18,12 +21,10 @@ import org.scijava.plugin.Plugin;
  * An Op which draws a wire-frame cuboid.
  * Can be used, e.g. for testing other Ops or Plugins.
  *
- * @todo write with ImgPlus, need Axis for calibration
- * @todo write a test with an image that touches interval boundaries to properly test deltaChi
  * @author Richard Domander
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")
-public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>> {
+public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitType>> {
     @Parameter
     private long uSize;
 
@@ -36,17 +37,19 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
     @Parameter(required = false)
     private long padding;
 
+    @Parameter(required = false)
+    private double[] calibration;
+
     private BinaryFunctionOp<Dimensions, BitType, Img<BitType>> createImgOp;
 
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
         // Call the hybrid op without a ready buffer (null)
-        System.out.print(ij.op().help("wireFrameCuboidCreator"));
-        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 100, 100, 10, 5);
+        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 100, 100, 10, 5, new double[]{0.2, 0.2, 0.2});
         ij.ui().show(cuboid);
     }
 
-    private void drawCuboidEdges(Img<BitType> cuboid, CuboidInfo info) {
+    private void drawCuboidEdges(ImgPlus<BitType> cuboid, CuboidInfo info) {
         setCuboidLocation(info.cuboidLocation, info.u0, info.v0, info.w0);
         drawLine(cuboid, info.cuboidLocation, 0, uSize);
         drawLine(cuboid, info.cuboidLocation, 1, vSize);
@@ -73,12 +76,13 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
         System.arraycopy(location, 0, cuboidLocation, 0, location.length);
     }
 
-    private void drawLine(final Img<BitType> cuboid, final long[] cuboidLocation, final int moveDim, final long length) {
+    private void drawLine(final ImgPlus<BitType> cuboid, final long[] cuboidLocation, final int moveDim,
+                          final long length) {
         final RandomAccess<BitType> randomAccess = cuboid.randomAccess();
         randomAccess.setPosition(cuboidLocation);
 
         int counter = 0;
-        while(counter < length) {
+        while (counter < length) {
             randomAccess.get().setOne();
             randomAccess.fwd(moveDim);
             counter++;
@@ -88,23 +92,25 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<Img<BitType>
     @Override
     public void initialize() {
         // match an Op which creates an Img from Dimensions and Type
-        createImgOp = (BinaryFunctionOp) Functions.binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class,
-                 BitType.class);
+        createImgOp = (BinaryFunctionOp) Functions
+                .binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class, BitType.class);
     }
 
     @Override
-    public void compute0(Img<BitType> cuboid) {
+    public void compute0(ImgPlus<BitType> cuboid) {
         final CuboidInfo info = new CuboidInfo(cuboid.numDimensions(), uSize, vSize, wSize, padding);
         drawCuboidEdges(cuboid, info);
     }
 
     @Override
-    public Img<BitType> createOutput() {
-        long paddedUSize = uSize + 2 * padding;
-        long paddedVSize = vSize + 2 * padding;
-        long paddedWSize = wSize + 2 * padding;
-        return createImgOp.compute2(new FinalDimensions(paddedUSize, paddedVSize, paddedWSize),
-                new BitType());
+    public ImgPlus<BitType> createOutput() {
+        final long paddedUSize = uSize + 2 * padding;
+        final long paddedVSize = vSize + 2 * padding;
+        final long paddedWSize = wSize + 2 * padding;
+        final Img<BitType> img =
+                createImgOp.compute2(new FinalDimensions(paddedUSize, paddedVSize, paddedWSize), new BitType());
+
+        return new ImgPlus<>(img, "Wire-frame cuboid", new AxisType[]{Axes.X, Axes.Y, Axes.Z}, calibration);
     }
 
     private final static class CuboidInfo {
