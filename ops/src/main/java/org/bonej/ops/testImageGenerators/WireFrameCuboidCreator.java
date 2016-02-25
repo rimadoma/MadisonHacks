@@ -18,6 +18,8 @@ import org.scijava.plugin.Plugin;
  * An Op which draws a wire-frame cuboid.
  * Can be used, e.g. for testing other Ops or Plugins.
  *
+ * @todo write with ImgPlus, need Axis for calibration
+ * @todo write a test with an image that touches interval boundaries to properly test deltaChi
  * @author Richard Domander
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")

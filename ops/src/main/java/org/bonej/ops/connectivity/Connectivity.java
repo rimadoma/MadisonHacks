@@ -8,6 +8,7 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.type.logic.BitType;
 import org.scijava.plugin.Plugin;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.Arrays;
 
@@ -265,9 +266,9 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     private double calculateEdgeCorrection(final ConnectivityAccess connectivityAccess) {
-        final long chiZero = countForegroundCornerElements(connectivityAccess);
-        final long e = countForegroundEdgeElements(connectivityAccess) + 3 * chiZero;
-        final long c = getStackFaces(connectivityAccess) + 2 * e - 3 * chiZero;
+        final long chiZero = countBorderCornerForegroundElements(connectivityAccess);
+        final long e = countBorderEdgeForegroundElements(connectivityAccess) + 3 * chiZero;
+        final long c = countBorderFaceForegroundElements(connectivityAccess) + 2 * e - 3 * chiZero;
 
         // there are already 6 * chiZero in 2 * e, so remove 3 * chiZero
 
@@ -282,29 +283,106 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     private long getFaceEdges(final ConnectivityAccess connectivityAccess) {
-        return 0;
+        throw new NotImplementedException();
     }
 
     private long getFaceVertices(final ConnectivityAccess connectivityAccess) {
-        return 0;
+        throw new NotImplementedException();
     }
 
     private long getEdgeVertices(final ConnectivityAccess connectivityAccess) {
-        return 0;
+        throw new NotImplementedException();
     }
 
-    private long getStackFaces(final ConnectivityAccess connectivityAccess) {
-        return 0;
+    /** Count the number of foreground elements on the faces that touch the borders of the Img interval */
+    private long countBorderFaceForegroundElements(final ConnectivityAccess connectivityAccess) {
+        long foregroundElements = 0;
+
+        // front and back (uv-plane) faces
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 1; v < connectivityAccess.vSize - 1; v++) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 1; u < connectivityAccess.uSize - 1; u++) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
+                }
+            }
+        }
+
+        // top and bottom (uw-plane) faces
+        for (long w = 1; w < connectivityAccess.wSize - 1; w++) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 1; u < connectivityAccess.uSize - 1; u++) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
+                }
+            }
+        }
+
+        // left and right (vw-plane) faces
+        for (long w = 1; w < connectivityAccess.wSize - 1; w++) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 1; v < connectivityAccess.vSize - 1; v++) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
+                }
+            }
+        }
+
+        return foregroundElements;
     }
 
-    private long countForegroundEdgeElements(final ConnectivityAccess connectivityAccess) {
-        long foregroundEdgeElements = 0;
+    /** Count the number of foreground elements in the edges that line the borders of the Img interval */
+    private long countBorderEdgeForegroundElements(final ConnectivityAccess connectivityAccess) {
+        long foregroundElements = 0;
 
-        return foregroundEdgeElements
+        // left to right (u-axis) edges
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 1; u < connectivityAccess.uSize - 1; u++) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
+                }
+            }
+        }
+
+        // top to bottom (v-axis) edges
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 1; v < connectivityAccess.vSize - 1; v++) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
+                }
+            }
+        }
+
+        // back to front (w-axis) edges
+        for (long w = 1; w < connectivityAccess.wSize - 1; w++) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
+                }
+            }
+        }
+
+        return foregroundElements;
     }
 
-    private long countForegroundCornerElements(final ConnectivityAccess connectivityAccess) {
-        long foregroundCorners = 0;
+    /** Count the number of foreground elements in the bordering corners of the Img interval */
+    private long countBorderCornerForegroundElements(final ConnectivityAccess connectivityAccess) {
+        long foregroundElements = 0;
 
         for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
             connectivityAccess.access.setPosition(w, W_INDEX);
@@ -312,14 +390,12 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
                 connectivityAccess.access.setPosition(v, V_INDEX);
                 for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
                     connectivityAccess.access.setPosition(u, U_INDEX);
-                    if (connectivityAccess.access.get().get()) {
-                        foregroundCorners++;
-                    }
+                    foregroundElements += connectivityAccess.access.get().getIntegerLong();
                 }
             }
         }
 
-        return foregroundCorners;
+        return foregroundElements;
     }
 
     private double calculateConnectivityDensity(final double connectivity,
@@ -357,14 +433,18 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         public final RandomAccess<BitType> access;
         /** The calibrated size of an element in the 1st dimension */
         public final double uElementSize;
+        /** The calibrated size of an element in the 2nd dimension */
         public final double vElementSize;
+        /** The calibrated size of an element in the 3rd dimension */
         public final double wElementSize;
+
         /** Number of elements (voxels) in the 1st dimension */
         public final long uSize;
         /** Number of elements (voxels) in the 2nd dimension */
         public final long vSize;
         /** Number of elements (voxels) in the 3rd dimension */
         public final long wSize;
+
         /** Increment value to jump to the end of 1st dimension */
         public final long uInc;
         /** Increment value to jump to the end of 2nd dimension */
@@ -374,15 +454,18 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
 
         public ConnectivityAccess(final ImgPlus<BitType> img) {
             access = img.randomAccess();
+
             uSize = img.dimension(U_INDEX);
             vSize = img.dimension(V_INDEX);
             wSize = img.dimension(W_INDEX);
-            uInc = Math.max(1, uSize - 1);
-            vInc = Math.max(1, vSize - 1);
-            wInc = Math.max(1, wSize - 1);
+
             uElementSize = img.axis(U_INDEX).averageScale(0, uSize);
             vElementSize = img.axis(V_INDEX).averageScale(0, vSize);
             wElementSize = img.axis(W_INDEX).averageScale(0, wSize);
+
+            uInc = Math.max(1L, uSize - 1L);
+            vInc = Math.max(1L, vSize - 1L);
+            wInc = Math.max(1L, wSize - 1L);
         }
     }
     //endregion
