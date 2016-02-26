@@ -19,6 +19,9 @@ import java.util.Arrays;
  * The euler characteristics of the elements are summed the get the characteristic of the whole particle.
  * The Op assumes that there is only one continuous foreground particle in the image.
  *
+ * @todo Assuming that all axis are linear
+ * @todo Assuming that all dimensions are spatial
+ *
  * @author Michael Doube
  * @author Richard Domander
  *
@@ -194,7 +197,6 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
 
     @Override
     public boolean conforms() {
-        //@todo are all the dimensions spatial?
         return in().numDimensions() == 3;
     }
 
@@ -206,9 +208,9 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         cursor.forEachRemaining(c -> {
             long u = cursor.getLongPosition(U_INDEX);
             long v = cursor.getLongPosition(V_INDEX);
-            int w = cursor.getIntPosition(W_INDEX);
+            long w = cursor.getLongPosition(W_INDEX);
             Octant octant = new Octant(imgPlus, u, v, w);
-            eulerSums[w] += getDeltaEuler(octant);
+            eulerSums[(int)w] += getDeltaEuler(octant);
         });
 
         return Arrays.stream(eulerSums).sum() / 8.0;

@@ -18,7 +18,7 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 /**
- * An Op which draws a wire-frame cuboid.
+ * Creates an ImgPlus<BitType> of a wire-frame cuboid. The ImgPlus has 3 spatial dimensions {X,Y,Z}.
  * Can be used, e.g. for testing other Ops or Plugins.
  *
  * @author Richard Domander
@@ -93,7 +93,7 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitT
     public void initialize() {
         // match an Op which creates an Img from Dimensions and Type
         createImgOp = (BinaryFunctionOp) Functions
-                .binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class, BitType.class);
+                .binary(ops(), Ops.Create.Img.class, Img.class, Dimensions.class, new BitType());
     }
 
     @Override

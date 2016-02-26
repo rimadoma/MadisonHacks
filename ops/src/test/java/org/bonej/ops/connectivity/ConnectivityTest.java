@@ -2,14 +2,22 @@ package org.bonej.ops.connectivity;
 
 import net.imagej.ImageJ;
 import net.imagej.ImgPlus;
+import net.imagej.ops.Ops;
+import net.imagej.ops.special.function.BinaryFunctionOp;
+import net.imagej.ops.special.function.Functions;
+import net.imglib2.Dimensions;
+import net.imglib2.FinalDimensions;
+import net.imglib2.img.Img;
 import net.imglib2.type.logic.BitType;
 import org.bonej.ops.testImageGenerators.WireFrameCuboidCreator;
 import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Unit tests for the Connectivity class
@@ -20,10 +28,40 @@ import static org.junit.Assert.assertEquals;
 public class ConnectivityTest {
     private static final ImageJ ij = new ImageJ();
     private static final double ERROR_MARGIN = 1E-12;
+    private static BinaryFunctionOp<Dimensions, BitType, Img<BitType>> imgCreator;
+
+    @BeforeClass
+    public static void oneTimeSetUp() {
+        imgCreator = (BinaryFunctionOp) Functions
+                .binary(ij.op(), Ops.Create.Img.class, Img.class, Dimensions.class, new BitType());
+    }
 
     @AfterClass
     public static void oneTimeTearDown() {
         ij.context().dispose();
+    }
+
+    /**
+     * Test that the Connectivity Op gets matched with correct input.
+     * Calling Connectivity.conforms() is a part of the matching process
+     */
+    @Test
+    public void testConnectivityMatchesWith3DImage() {
+        final double[] calibration = {0.2, 0.2, 0.2};
+        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 10, 10, 10, 0, calibration);
+
+        Connectivity connectivity = ij.op().op(Connectivity.class, cuboid);
+
+        assertNotNull(connectivity);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testConnectivityFailsMatchWith2DImage() {
+        // to be called unary the 2nd argument for this BinaryFunction has to be set non null in the matcher
+        Img<BitType> img = imgCreator.compute1(new FinalDimensions(10, 10));
+        ImgPlus<BitType> testImage = new ImgPlus<>(img);
+
+        ij.op().op(Connectivity.class, testImage);
     }
 
     /**
@@ -45,6 +83,7 @@ public class ConnectivityTest {
         final double ELEMENT_VOLUME = Arrays.stream(CALIBRATION).reduce((i, j) -> i * j).getAsDouble();
         final double EXPECTED_CONNECTIVITY = 5.0;
         final double EXPECTED_DENSITY = EXPECTED_CONNECTIVITY / (CUBOID_VOLUME * ELEMENT_VOLUME);
+
 
         ImgPlus<BitType> cuboid = (ImgPlus<BitType>) ij.op()
                 .run(WireFrameCuboidCreator.class, null, CUBOID_WIDTH, CUBOID_HEIGHT, CUBOID_DEPTH, PADDING,
