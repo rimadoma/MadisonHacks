@@ -411,7 +411,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     //region -- Helper classes --
-    public static final class Characteristics {
+    public final class Characteristics {
         public double eulerCharacteristic;
         public double deltaChi;
         public double connectivity;
