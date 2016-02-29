@@ -430,6 +430,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
      * A Convenience class for traversing the plugin's input ImgPlus
      *
      * @implNote element sizes are accurate only if axes are linear
+     * @todo Set access to Views.extendZero(interval).randomAccess()?
      */
     private final class ConnectivityAccess {
         public final RandomAccess<BitType> access;
@@ -461,9 +462,9 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
             vSize = img.dimension(V_INDEX);
             wSize = img.dimension(W_INDEX);
 
-            uElementSize = img.axis(U_INDEX).averageScale(0, uSize);
-            vElementSize = img.axis(V_INDEX).averageScale(0, vSize);
-            wElementSize = img.axis(W_INDEX).averageScale(0, wSize);
+            uElementSize = img.axis(U_INDEX).averageScale(0.0, uSize);
+            vElementSize = img.axis(V_INDEX).averageScale(0.0, vSize);
+            wElementSize = img.axis(W_INDEX).averageScale(0.0, wSize);
 
             uInc = Math.max(1L, uSize - 1L);
             vInc = Math.max(1L, vSize - 1L);
