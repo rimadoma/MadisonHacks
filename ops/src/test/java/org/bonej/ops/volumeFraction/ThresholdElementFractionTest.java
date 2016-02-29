@@ -16,6 +16,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unit tests for the ThresholdElementFraction class
@@ -35,24 +36,27 @@ public class ThresholdElementFractionTest {
     @Test
     public void testThresholdElementFraction() {
         // Create threshold settings
-        final LongType foregroundCutOff = new LongType(1);
-        final LongType minThreshold = new LongType(5);
-        final LongType maxThreshold = new LongType(9);
+        final LongType foregroundCutOff = new LongType(1L);
+        final LongType minThreshold = new LongType(5L);
+        final LongType maxThreshold = new LongType(9L);
         final Settings<LongType> settings = new Settings<>(foregroundCutOff, minThreshold, maxThreshold);
 
         // Create test img
-        final long intervalSize = 11;
+        final long intervalSize = 11L;
         final Img<LongType> img = imgCreator.compute1(new FinalDimensions(intervalSize));
         RandomAccess<LongType> access = img.randomAccess();
         for (long i = 0; i < intervalSize; i++) {
-            access.move(1, 0);
             access.get().set(i);
+            access.move(1, 0);
         }
 
         // Get and assert results
         Results results = (Results) ij.op().run(ThresholdElementFraction.class, img, settings);
 
-        assertEquals("Incorrect number of foreground elements", 10, results.foregroundElements);
-        assertEquals("Incorrect number of elements within thresholds", 5, results.thresholdElements);
+        assertTrue("Number of threshold elements cannot be greater than foreground elements",
+                results.thresholdElements <= results.foregroundElements);
+        assertEquals("Incorrect number of foreground elements", 10L, results.foregroundElements);
+        assertEquals("Incorrect number of elements within thresholds", 5L, results.thresholdElements);
+        assertEquals("Incorrect ratio of elements", 0.5, results.elementRatio, 1E-12);
     }
 }
