@@ -25,7 +25,7 @@ import org.scijava.plugin.Plugin;
  * @todo Make Unary with CuboidInfo as input?
  * @todo Add menu path?
  */
-@Plugin(type = Op.class, name = "wireFrameCuboidCreator")
+@Plugin(type = Op.class, name = "wireFrameCuboidCreator", menuPath = "Plugins>Test Images>Wire-frame cuboid")
 public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitType>> {
     @Parameter
     private long uSize;

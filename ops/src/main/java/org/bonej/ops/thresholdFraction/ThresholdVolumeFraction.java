@@ -28,7 +28,7 @@ import org.scijava.plugin.Plugin;
  * @todo Regression test (against BoneJ1)
  * @todo Unit tests for creating masks?
  */
-@Plugin(type = Op.class, name = "thresholdVolumeFraction")
+@Plugin(type = Op.class)
 public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> extends
         AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<T>, ThresholdVolumeFraction.Results>
         implements Contingent {
