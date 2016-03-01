@@ -1,17 +1,18 @@
-package org.bonej.ops.volumeFraction;
+package org.bonej.ops.thresholdFraction;
 
 import net.imagej.ops.Op;
 import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
-import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import org.scijava.plugin.Plugin;
+
+import java.util.stream.StreamSupport;
 
 /**
  * Counts the number of foreground elements in the interval that are within the given thresholds
  *
  * @author Richard Domander
  * @apiNote The plugin assumes that foregroundCutOff.compareTo(minThreshold) <= 0,
- *          and minThreshold.compareTo(maxThreshold) <= 0
+ * and minThreshold.compareTo(maxThreshold) <= 0
  * @todo How to implement the limit calculations to ROIs option from BoneJ1?
  * @todo How to apply calculations only to areas defined by masks (irregular rois)?
  * @todo How to display Results?
@@ -21,28 +22,18 @@ public class ThresholdElementFraction<S, T extends Comparable<S>> extends
         AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdElementFraction.Settings<S>, ThresholdElementFraction.Results> {
     @Override
     public Results compute2(final IterableInterval<T> interval, final Settings<S> settings) {
-        long foregroundElements = 0;
-        long thresholdElements = 0;
+        final long foregroundElements = StreamSupport.stream(interval.spliterator(), false)
+                .filter(e -> e.compareTo(settings.foregroundCutOff) >= 0).count();
 
-        Cursor<T> cursor = interval.cursor();
-        while (cursor.hasNext()) {
-            cursor.fwd();
-            T element = cursor.get();
-            if (element.compareTo(settings.foregroundCutOff) < 0) {
-                continue;
-            }
-
-            foregroundElements++;
-
-            if ((element.compareTo(settings.minThreshold) >= 0) && (element.compareTo(settings.maxThreshold) <= 0)) {
-                thresholdElements++;
-            }
-        }
+        final long thresholdElements = StreamSupport.stream(interval.spliterator(), false)
+                .filter(e -> e.compareTo(settings.minThreshold) >= 0 && e.compareTo(settings.maxThreshold) <= 0)
+                .count();
 
         return new Results(thresholdElements, foregroundElements);
     }
 
     //region -- Helper classes --
+
     /**
      * A helper class for passing the input settings of the Op type safely,
      * without having to memorize array indices etc.

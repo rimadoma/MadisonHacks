@@ -1,4 +1,4 @@
-package org.bonej.ops.volumeFraction;
+package org.bonej.ops.thresholdFraction;
 
 import net.imagej.ImageJ;
 import net.imagej.ops.Ops;
@@ -10,8 +10,8 @@ import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.LongType;
-import org.bonej.ops.volumeFraction.ThresholdElementFraction.Results;
-import org.bonej.ops.volumeFraction.ThresholdElementFraction.Settings;
+import org.bonej.ops.thresholdFraction.ThresholdElementFraction.Results;
+import org.bonej.ops.thresholdFraction.ThresholdElementFraction.Settings;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

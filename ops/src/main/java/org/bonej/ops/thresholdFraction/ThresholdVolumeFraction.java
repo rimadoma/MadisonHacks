@@ -1,4 +1,4 @@
-package org.bonej.ops.volumeFraction;
+package org.bonej.ops.thresholdFraction;
 
 import net.imagej.ImageJ;
 import net.imagej.ops.Contingent;
@@ -25,13 +25,17 @@ import org.scijava.plugin.Plugin;
  * @todo How to display resulting meshes?
  * @todo Prematch Ops in initialize
  * @todo Resampling?
- * @todo Regression test
+ * @todo Regression test (against BoneJ1)
  * @todo Unit tests for creating masks?
  */
 @Plugin(type = Op.class, name = "thresholdVolumeFraction")
 public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> extends
         AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<T>, ThresholdVolumeFraction.Results>
         implements Contingent {
+    //private BinaryFunctionOp<Interval, BitType, Img<BitType>> createMaskImgOp;
+    //private static UnaryFunctionOp<Img, Mesh> marchingCubesOp;
+    //private static UnaryFunctionOp<Mesh, DoubleType> sizeOp;
+
     @Override
     public Results compute2(final IterableInterval<T> interval, final Settings<T> settings) {
         final Img<BitType> thresholdMask = ops().create().img(interval, new BitType());
@@ -94,7 +98,6 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> ex
      * @todo How are these kinds @Parameters stored persistently?
      */
     public static final class Settings<T> {
-        public static final int DEFAULT_RESAMPLING = 6;
         /** Minimum value for elements within threshold */
         public final T minThreshold;
         /** Maximum value for elements within threshold */
@@ -102,17 +105,10 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> ex
         /** Elements whose values >= foregroundCutOff are considered foreground */
         public final T foregroundCutOff;
 
-        public final int resampling;
-
         public Settings(final T foregroundCutOff, final T minThreshold, final T maxThreshold) {
-            this(foregroundCutOff, minThreshold, maxThreshold, DEFAULT_RESAMPLING);
-        }
-
-        public Settings(final T foregroundCutOff, final T minThreshold, final T maxThreshold, final int resampling) {
             this.foregroundCutOff = foregroundCutOff;
             this.minThreshold = minThreshold;
             this.maxThreshold = maxThreshold;
-            this.resampling = resampling;
         }
     }
 
