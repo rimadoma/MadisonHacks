@@ -22,6 +22,8 @@ import org.scijava.plugin.Plugin;
  * Can be used, e.g. for testing other Ops or Plugins.
  *
  * @author Richard Domander
+ * @todo Make Unary with CuboidInfo as input?
+ * @todo Add menu path?
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator")
 public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitType>> {
@@ -45,7 +47,8 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitT
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
         // Call the hybrid op without a ready buffer (null)
-        Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 100, 100, 10, 5, new double[]{0.2, 0.2, 0.2});
+        Object cuboid =
+                ij.op().run(WireFrameCuboidCreator.class, null, 100L, 100L, 10L, 5L, new double[]{0.2, 0.2, 0.2});
         ij.ui().show(cuboid);
     }
 
@@ -113,6 +116,10 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitT
         return new ImgPlus<>(img, "Wire-frame cuboid", new AxisType[]{Axes.X, Axes.Y, Axes.Z}, calibration);
     }
 
+    /**
+     * @todo Make shared so that can be shared with CuboidCreator?
+     * @todo Add calibration[]?
+     */
     private final static class CuboidInfo {
         public long u0;
         public long u1;
@@ -125,7 +132,7 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitT
         public long paddedWSize;
         public long[] cuboidLocation;
 
-        CuboidInfo(int dimensions, final long uSize, final long vSize, final long wSize, final long padding) {
+        private CuboidInfo(int dimensions, final long uSize, final long vSize, final long wSize, final long padding) {
             cuboidLocation = new long[dimensions];
             u0 = padding;
             u1 = padding + uSize - 1;

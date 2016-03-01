@@ -11,7 +11,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BitType;
-import org.bonej.ops.testImageGenerators.WireFrameCuboidCreator;
+import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.scijava.plugin.Plugin;
 
 /**
@@ -23,11 +23,15 @@ import org.scijava.plugin.Plugin;
  * @todo How to apply calculations only to areas defined by masks (irregular rois)?
  * @todo How to display result data?
  * @todo How to display resulting meshes?
+ * @todo Prematch Ops in initialize
+ * @todo Resampling?
+ * @todo Regression test
+ * @todo Unit tests for creating masks?
  */
 @Plugin(type = Op.class, name = "thresholdVolumeFraction")
 public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> extends
         AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<T>, ThresholdVolumeFraction.Results>
-        implements Contingent{
+        implements Contingent {
     @Override
     public Results compute2(final IterableInterval<T> interval, final Settings<T> settings) {
         final Img<BitType> thresholdMask = ops().create().img(interval, new BitType());
@@ -67,21 +71,23 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> ex
         return in1().numDimensions() == 3;
     }
 
+    //region -- Utility methods --
     public static void main(String... args) {
         final ImageJ ij = new ImageJ();
-        final Object cuboid = ij.op().run(WireFrameCuboidCreator.class, null, 10, 10, 10, 1);
+        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L, 0L);
         final BitType foregroundCutoff = new BitType(true);
         final BitType minThreshold = new BitType(true);
         final BitType maxThreshold = new BitType(true);
         final Settings<BitType> settings = new Settings<>(foregroundCutoff, minThreshold, maxThreshold);
 
         final Results results = (Results) ij.op().run(ThresholdVolumeFraction.class, cuboid, settings);
-        System.out.println(results.thresholdVolume);
-        System.out.println(results.foregroundVolume);
-        System.out.println(results.volumeRatio);
+        System.out.println("Thresholded surface volume " + results.thresholdVolume);
+        System.out.println("Foreground surface volume " + results.foregroundVolume);
+        System.out.println("Volume ratio " + results.volumeRatio);
 
         ij.context().dispose();
     }
+    //endregion
 
     //region -- Helper classes --
     /**
