@@ -61,7 +61,7 @@ public class CuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitType>> {
         final Img<BitType> img =
                 createImgOp.compute2(new FinalDimensions(paddedUSize, paddedVSize, paddedWSize), new BitType());
 
-        return new ImgPlus<>(img, "Wire-frame cuboid", new AxisType[]{Axes.X, Axes.Y, Axes.Z}, calibration);
+        return new ImgPlus<>(img, "Cuboid", new AxisType[]{Axes.X, Axes.Y, Axes.Z}, calibration);
     }
 
     @Override

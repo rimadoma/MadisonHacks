@@ -3,14 +3,17 @@ package org.bonej.ops.thresholdFraction;
 import net.imagej.ImageJ;
 import net.imagej.ops.Contingent;
 import net.imagej.ops.Op;
+import net.imagej.ops.Ops;
 import net.imagej.ops.geom.geom3d.mesh.Mesh;
 import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
+import net.imagej.ops.special.function.UnaryFunctionOp;
 import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BitType;
+import net.imglib2.type.numeric.real.DoubleType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.scijava.plugin.Plugin;
 
@@ -19,25 +22,16 @@ import org.scijava.plugin.Plugin;
  * The volumes are determined from meshes created with the marching cubes algorithm.
  *
  * @author Richard Domander
- * @todo How to implement the limit calculations to ROIs option from BoneJ1?
- * @todo How to apply calculations only to areas defined by masks (irregular rois)?
- * @todo How to display result data?
- * @todo How to display resulting meshes?
  * @todo Prematch Ops in initialize
- * @todo Resampling?
- * @todo Regression test (against BoneJ1)
- * @todo Unit tests for creating masks?
+ * @todo Unit tests for creating mesh masks?
  */
 @Plugin(type = Op.class)
-public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> extends
-        AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<T>, ThresholdVolumeFraction.Results>
+public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>> extends
+        AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<S>, ThresholdVolumeFraction.Results>
         implements Contingent {
-    //private BinaryFunctionOp<Interval, BitType, Img<BitType>> createMaskImgOp;
-    //private static UnaryFunctionOp<Img, Mesh> marchingCubesOp;
-    //private static UnaryFunctionOp<Mesh, DoubleType> sizeOp;
-
     @Override
-    public Results compute2(final IterableInterval<T> interval, final Settings<T> settings) {
+    public Results compute2(final IterableInterval<T> interval, final Settings<S> settings) {
+        //Crashes with NotImplementedException if interval is a Dataset
         final Img<BitType> thresholdMask = ops().create().img(interval, new BitType());
         final Img<BitType> foregroundMask = ops().create().img(interval, new BitType());
         final long[] location = new long[interval.numDimensions()];
@@ -94,9 +88,6 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & Comparable<T>> ex
     //endregion
 
     //region -- Helper classes --
-    /**
-     * @todo How are these kinds @Parameters stored persistently?
-     */
     public static final class Settings<T> {
         /** Minimum value for elements within threshold */
         public final T minThreshold;

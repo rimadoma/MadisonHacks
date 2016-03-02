@@ -1,11 +1,14 @@
 package org.bonej.wrapperCommands;
 
+import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import net.imagej.ImgPlus;
-import net.imglib2.type.numeric.RealType;
+import net.imagej.ops.OpService;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.integer.LongType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.bonej.ops.thresholdFraction.ThresholdVolumeFraction;
+import org.scijava.ItemVisibility;
 import org.scijava.command.Command;
 import org.scijava.command.ContextCommand;
 import org.scijava.platform.PlatformService;
@@ -13,6 +16,7 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.ui.UIService;
 import org.scijava.widget.Button;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.net.URL;
@@ -23,34 +27,50 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * @author Richard Domander
  * @todo Check for spatial dimensions?
- * @todo Confirm that there's no real reason for checking bit depth
- * @todo What's the suitable generic type for ImgPlus<T> activeImage?
+ * @todo Confirm that there's no real reason to prevent color / 32-bit images
  * @todo One or two wrappers for ThresholdFraction Ops in BoneJ2?
- * @todo How to determine thresholds?
+ * @todo How to determine thresholds? What are min & max?
+ * @todo How to display result data?
+ * @todo How to display resulting meshes?
+ * @todo Dimension checking doesn't work
+ * @todo Bit depth doesn't work
+ * @todo Bit depth label doesn't work
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BoneJ>Volume Fraction")
-public class ThresholdVolumeFractionWrapper<T extends RealType<T>> extends ContextCommand {
+public class ThresholdVolumeFractionWrapper extends ContextCommand {
+    private static final String BIT_DEPTH_LABEL = "Image bit-depth: ";
     private long thresholdBoundary;
 
     /**
-     * @implNote Set required = false to disable the default error message
-     * @implNote Use ImgPlus because we need calibration info
+     * @implNote    Set required = false to disable the default error message
+     * @implNote    Use Dataset for now because only they can be automatically populated
+     *              ImgPlus etc. ok in ImageJ POM >= 14.6.2
      */
-    @Parameter(initializer = "initializeActiveImage", required = false, persist = false)
-    private ImgPlus<T> activeImage;
+    @Parameter(initializer = "checkImage", required = false)
+    private Dataset activeImage;
 
-    @Parameter(label = "Foreground cut-off", description = "Elements above this value are considered foreground",
-            callback = "enforceThresholds")
-    private long foregroundCutOff = 1;
+    @Parameter(visibility = ItemVisibility.MESSAGE, description = "Maximum element value for the image is 2^depth - 1")
+    private static String bitDepthMessage = BIT_DEPTH_LABEL + "N/A";
 
-    @Parameter(label = "Minimum threshold value", min = "0", callback = "enforceThresholds")
+    @Parameter(label = "Foreground cut-off", persist = false, callback = "enforceThresholds",
+            description = "Voxels values above this cut-off are considered foreground (bone)")
+    private long foregroundCutOff;
+
+    @Parameter(label = "Threshold minimum", persist = false, min = "0", callback = "enforceThresholds",
+            description = "Minimum value for mineralized bone voxels")
     private long minThreshold;
 
-    @Parameter(label = "Maximum threshold value", min = "0", callback = "enforceThresholds")
+    @Parameter(label = "Maximum threshold value", persist = false, min = "0", callback = "enforceThresholds")
     private long maxThreshold;
 
-    @Parameter(label = "Help", persist = false, min = "0", callback = "openHelpPage")
+    @Parameter(label = "Show 3D surfaces", description = "Show the sample and mineralized bone surfaces in 3D")
+    private boolean show3DResult = false;
+
+    @Parameter(label = "Help", callback = "openHelpPage")
     private Button helpButton;
+
+    @Parameter
+    private OpService opService;
 
     @Parameter
     private PlatformService platformService;
@@ -61,11 +81,19 @@ public class ThresholdVolumeFractionWrapper<T extends RealType<T>> extends Conte
     @Override
     public void run() {
         final ThresholdVolumeFraction.Settings<LongType> settings =
-                new ThresholdVolumeFraction.Settings<LongType>(new LongType(foregroundCutOff),
-                        new LongType(minThreshold), new LongType(maxThreshold));
+                new ThresholdVolumeFraction.Settings<>(new LongType(foregroundCutOff), new LongType(minThreshold),
+                        new LongType(maxThreshold));
 
-        //final ThresholdVolumeFraction.Results results =
-        //        (ThresholdVolumeFraction.Results) ij.op().run(ThresholdVolumeFraction.class, cuboid, settings);
+        // Class cast exception
+        ImgPlus<LongType> imgPlus = (ImgPlus<LongType>) activeImage.getImgPlus();
+        final ThresholdVolumeFraction.Results results =
+                (ThresholdVolumeFraction.Results) opService.run(ThresholdVolumeFraction.class, imgPlus, settings);
+
+        displayResults(results);
+
+        if (show3DResult) {
+            showSurfaces(results);
+        }
     }
 
     //region --Utility methods--
@@ -77,8 +105,23 @@ public class ThresholdVolumeFractionWrapper<T extends RealType<T>> extends Conte
     //endregion
 
     //region --Helper methods--
+
+    /** Display volume data in the IJ results table */
+    private void displayResults(final ThresholdVolumeFraction.Results results) {
+        System.out.println("Thresholded surface volume " + results.thresholdVolume);
+        System.out.println("Foreground surface volume " + results.foregroundVolume);
+        System.out.println("Volume ratio " + results.volumeRatio);
+        throw new NotImplementedException();
+    }
+
+    /** Visualize the 3D surfaces produced */
+    private void showSurfaces(final ThresholdVolumeFraction.Results results) {
+        throw new NotImplementedException();
+    }
+
+    @SuppressWarnings("unused")
     private void enforceThresholds() {
-        /*if (maxThreshold > thresholdBoundary) {
+        if (maxThreshold > thresholdBoundary) {
             maxThreshold = thresholdBoundary;
         }
 
@@ -87,26 +130,35 @@ public class ThresholdVolumeFractionWrapper<T extends RealType<T>> extends Conte
         }
         if (foregroundCutOff > minThreshold) {
             foregroundCutOff = minThreshold;
-        }*/
+        }
     }
 
-    private void initializeActiveImage() {
+    @SuppressWarnings("unused")
+    private void checkImage() {
         try {
             checkNotNull(activeImage, "No image open");
             checkArgument(activeImage.numDimensions() == 3, "Image must be three dimensional");
-
-            //@todo fix thresholdBoundary to something sensible
-            thresholdBoundary = 255;
-            maxThreshold = thresholdBoundary; //@todo maxThreshold becomes 1?!
-            minThreshold = maxThreshold / 2;
+            initThresholds();
         } catch (IllegalArgumentException | NullPointerException e) {
             cancel(e.getMessage());
         }
     }
 
-    /**
-     * @todo Always fails
-     */
+    private void initThresholds() {
+        final int bitDepth = activeImage.getValidBits();
+        final boolean validBitDepth = bitDepth > 0;
+        bitDepthMessage = validBitDepth ? BIT_DEPTH_LABEL + bitDepth: BIT_DEPTH_LABEL + "N/A";
+
+        checkArgument(validBitDepth, "Cannot determine threshold values from bit-depth");
+
+        thresholdBoundary = (1 << bitDepth) - 1;
+        maxThreshold = thresholdBoundary;
+        minThreshold = Math.round(maxThreshold / 2.0);
+        foregroundCutOff = 1;
+    }
+
+    /** @todo Problems with Chrome? */
+    @SuppressWarnings("unused")
     private void openHelpPage() {
         try {
             URL helpUrl = new URL("http://bonej.org/volumefraction");
@@ -115,6 +167,5 @@ public class ThresholdVolumeFractionWrapper<T extends RealType<T>> extends Conte
             uiService.showDialog("An error occurred while trying to open the help page");
         }
     }
-
     //endregion
 }
