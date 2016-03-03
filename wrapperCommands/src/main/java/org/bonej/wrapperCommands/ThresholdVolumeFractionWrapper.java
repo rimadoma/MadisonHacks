@@ -5,6 +5,7 @@ import net.imagej.ImageJ;
 import net.imagej.ops.OpService;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.bonej.ops.thresholdFraction.ThresholdVolumeFraction;
+import org.bonej.utilities.ResultsInserter;
 import org.scijava.ItemVisibility;
 import org.scijava.command.Command;
 import org.scijava.command.ContextCommand;
@@ -94,19 +95,22 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     //region --Utility methods--
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
-        final Object cuboid = ij.op().run(CuboidCreator.class, null, 100L, 100L, 10L, 10L);
+        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L);
         ij.ui().show(cuboid);
     }
     //endregion
 
     //region --Helper methods--
 
-    /** Display volume data in the IJ results table */
+    /** Display volume data in the IJ results table
+     *  @todo add units
+     *  @todo show calibrated values
+     * */
     private void displayResults(final ThresholdVolumeFraction.Results results) {
-        System.out.println("Thresholded surface volume " + results.thresholdMeshVolume);
-        System.out.println("Foreground surface volume " + results.foregroundMeshVolume);
-        System.out.println("Volume ratio " + results.volumeRatio);
-        throw new NotImplementedException();
+        ResultsInserter resultInserter = new ResultsInserter();
+        final String title = activeImage.getName();
+        resultInserter.setMeasurementInFirstFreeRow(title, "Bone volume", results.foregroundMeshVolume);
+        resultInserter.showTable();
     }
 
     /** Visualize the 3D surfaces produced */
