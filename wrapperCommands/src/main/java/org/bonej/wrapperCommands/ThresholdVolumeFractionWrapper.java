@@ -2,7 +2,6 @@ package org.bonej.wrapperCommands;
 
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
-import net.imagej.ImgPlus;
 import net.imagej.ops.OpService;
 import net.imglib2.type.numeric.integer.LongType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
@@ -29,8 +28,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * @todo Confirm that there's no real reason to prevent color / 32-bit images
  * @todo One or two wrappers for ThresholdFraction Ops in BoneJ2?
  * @todo How to determine thresholds? What are min & max?
- * @todo How to display result data?
- * @todo How to display resulting meshes?
+ * @todo Display results with IJ1 Results Table (for now)
+ * @todo How to display resulting meshes? (Kyle's 3D Viewer branch?)
  * @todo Dimension checking doesn't work
  * @todo Bit depth doesn't work
  * @todo Bit depth label doesn't work
@@ -41,9 +40,9 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     private long thresholdBoundary;
 
     /**
-     * @implNote    Set required = false to disable the default error message
-     * @implNote    Use Dataset for now because only they can be automatically populated
-     *              ImgPlus etc. ok in ImageJ POM >= 14.6.2
+     * @implNote Set required = false to disable the default error message
+     * @implNote Use Dataset for now because only they can be automatically populated
+     * ImgPlus etc. ok in ImageJ POM >= 14.6.2
      */
     @Parameter(initializer = "checkImage", required = false)
     private Dataset activeImage;
@@ -84,9 +83,8 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
                         new LongType(maxThreshold));
 
         // Class cast exception
-        ImgPlus<LongType> imgPlus = (ImgPlus<LongType>) activeImage.getImgPlus();
-        final ThresholdVolumeFraction.Results results =
-                (ThresholdVolumeFraction.Results) opService.run(ThresholdVolumeFraction.class, imgPlus, settings);
+        final ThresholdVolumeFraction.Results results = (ThresholdVolumeFraction.Results) opService
+                .run(ThresholdVolumeFraction.class, activeImage.getImgPlus(), settings);
 
         displayResults(results);
 
@@ -146,7 +144,7 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     private void initThresholds() {
         final int bitDepth = activeImage.getValidBits();
         final boolean validBitDepth = bitDepth > 0;
-        bitDepthMessage = validBitDepth ? BIT_DEPTH_LABEL + bitDepth: BIT_DEPTH_LABEL + "N/A";
+        bitDepthMessage = validBitDepth ? BIT_DEPTH_LABEL + bitDepth : BIT_DEPTH_LABEL + "N/A";
 
         checkArgument(validBitDepth, "Cannot determine threshold values from bit-depth");
 

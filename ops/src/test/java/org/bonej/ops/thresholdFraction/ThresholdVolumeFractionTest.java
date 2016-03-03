@@ -24,6 +24,14 @@ public class ThresholdVolumeFractionTest {
     private final static ImageJ ij = new ImageJ();
     private static final double ERROR_MARGIN = 1e-12;
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testThresholdVolumeFractionFailsMatchWith2DImage() {
+        // to be called unary the 2nd argument for this BinaryFunction has to be set non null in the matcher
+        Img img = (Img) ij.op().run(CreateImgFromDimsAndType.class, new FinalDimensions(10, 10), new LongType());
+        final Settings settings = new Settings<>(new LongType(1L), new LongType(1L), new LongType(100L));
+        ij.op().op(ThresholdVolumeFraction.class, img, settings);
+    }
+
     @Test
     public void regressionTestUnitCube() throws AssertionError {
         /*  The surface created by the marching cubes algorithm in ThresholdVolumeFraction is " in between pixels".
