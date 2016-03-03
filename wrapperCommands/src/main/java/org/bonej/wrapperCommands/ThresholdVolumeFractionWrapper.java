@@ -3,7 +3,6 @@ package org.bonej.wrapperCommands;
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import net.imagej.ops.OpService;
-import net.imglib2.type.numeric.integer.LongType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.bonej.ops.thresholdFraction.ThresholdVolumeFraction;
 import org.scijava.ItemVisibility;
@@ -33,6 +32,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * @todo Dimension checking doesn't work
  * @todo Bit depth doesn't work
  * @todo Bit depth label doesn't work
+ * @todo Change widgets based on Dataset type
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BoneJ>Volume Fraction")
 public class ThresholdVolumeFractionWrapper extends ContextCommand {
@@ -52,14 +52,14 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
 
     @Parameter(label = "Foreground cut-off", persist = false, callback = "enforceThresholds",
             description = "Voxels values above this cut-off are considered foreground (bone)")
-    private long foregroundCutOff;
+    private double foregroundCutOff;
 
     @Parameter(label = "Threshold minimum", persist = false, min = "0", callback = "enforceThresholds",
             description = "Minimum value for mineralized bone voxels")
-    private long minThreshold;
+    private double minThreshold;
 
     @Parameter(label = "Maximum threshold value", persist = false, min = "0", callback = "enforceThresholds")
-    private long maxThreshold;
+    private double maxThreshold;
 
     @Parameter(label = "Show 3D surfaces", description = "Show the sample and mineralized bone surfaces in 3D")
     private boolean show3DResult = false;
@@ -78,11 +78,9 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
 
     @Override
     public void run() {
-        final ThresholdVolumeFraction.Settings<LongType> settings =
-                new ThresholdVolumeFraction.Settings<>(new LongType(foregroundCutOff), new LongType(minThreshold),
-                        new LongType(maxThreshold));
+        final ThresholdVolumeFraction.Settings settings =
+                new ThresholdVolumeFraction.Settings(foregroundCutOff, minThreshold, maxThreshold);
 
-        // Class cast exception
         final ThresholdVolumeFraction.Results results = (ThresholdVolumeFraction.Results) opService
                 .run(ThresholdVolumeFraction.class, activeImage.getImgPlus(), settings);
 
@@ -96,7 +94,7 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     //region --Utility methods--
     public static void main(String... args) {
         final ImageJ ij = net.imagej.Main.launch(args);
-        final Object cuboid = ij.op().run(CuboidCreator.class, null, 100L, 100L, 100L, 10L);
+        final Object cuboid = ij.op().run(CuboidCreator.class, null, 100L, 100L, 10L, 10L);
         ij.ui().show(cuboid);
     }
     //endregion
@@ -148,6 +146,7 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
 
         checkArgument(validBitDepth, "Cannot determine threshold values from bit-depth");
 
+        //@todo get from min & max values
         thresholdBoundary = (1 << bitDepth) - 1;
         maxThreshold = thresholdBoundary;
         minThreshold = Math.round(maxThreshold / 2.0);

@@ -28,7 +28,7 @@ public class ThresholdVolumeFractionTest {
     public void testThresholdVolumeFractionFailsMatchWith2DImage() {
         // to be called unary the 2nd argument for this BinaryFunction has to be set non null in the matcher
         Img img = (Img) ij.op().run(CreateImgFromDimsAndType.class, new FinalDimensions(10, 10), new LongType());
-        final Settings settings = new Settings<>(new LongType(1L), new LongType(1L), new LongType(100L));
+        final Settings settings = new Settings(1, 1, 100);
         ij.op().op(ThresholdVolumeFraction.class, img, settings);
     }
 
@@ -46,7 +46,7 @@ public class ThresholdVolumeFractionTest {
         final double octahedronVolume = pyramidVolume * 2.0;
         final IterableInterval<BitType> unitCube =
                 (IterableInterval<BitType>) ij.op().run(CuboidCreator.class, null, width, height, depth);
-        final Settings<BitType> settings = new Settings<>(new BitType(true), new BitType(true), new BitType(true));
+        final Settings settings = new Settings(1.0, 1.0, 1.0);
 
         final Results results = (Results) ij.op().run(ThresholdVolumeFraction.class, unitCube, settings);
 
@@ -66,7 +66,7 @@ public class ThresholdVolumeFractionTest {
         final long wSize = 10;
         final long vSize = 10;
         final long uSize = 10;
-        final Settings<LongType> settings = new Settings<>(new LongType(1L), new LongType(6L), new LongType(10L));
+        final Settings settings = new Settings(1, 6, 10);
         final Img<LongType> testImg = (Img<LongType>) ij.op()
                 .run(CreateImgFromDimsAndType.class, new FinalDimensions(uSize, vSize, wSize), new LongType());
         fillWithThirdDimGradient(testImg);

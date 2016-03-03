@@ -11,6 +11,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BitType;
+import net.imglib2.type.numeric.RealType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.scijava.plugin.Plugin;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
@@ -22,14 +23,14 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
  * @author Richard Domander
  */
 @Plugin(type = Op.class)
-public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>> extends
-        AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<S>, ThresholdVolumeFraction.Results>
+public class ThresholdVolumeFraction<T extends NativeType<T> & RealType<T>> extends
+        AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings, ThresholdVolumeFraction.Results>
         implements Contingent {
     /**
      * @throws NotImplementedException if interval is a Dataset
      */
     @Override
-    public Results compute2(final IterableInterval<T> interval, final Settings<S> settings) {
+    public Results compute2(final IterableInterval<T> interval, final Settings settings) {
         final Img<BitType> thresholdMask = ops().create().img(interval, new BitType());
         final Img<BitType> foregroundMask = ops().create().img(interval, new BitType());
         final long[] location = new long[interval.numDimensions()];
@@ -37,10 +38,18 @@ public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>>
         final RandomAccess<BitType> foregroundAccess = foregroundMask.randomAccess();
         final RandomAccess<BitType> thresholdAccess = thresholdMask.randomAccess();
 
+        // Create elements of type T from settings that can be compared to type T in interval
+        final T cutoff = interval.firstElement().createVariable();
+        cutoff.setReal(settings.foregroundCutOff);
+        final T minThreshold = interval.firstElement().createVariable();
+        minThreshold.setReal(settings.minThreshold);
+        final T maxThreshold = interval.firstElement().createVariable();
+        maxThreshold.setReal(settings.maxThreshold);
+
         while (cursor.hasNext()) {
             cursor.fwd();
             T element = cursor.get();
-            if (element.compareTo(settings.foregroundCutOff) < 0) {
+            if (element.compareTo(cutoff) < 0) {
                 continue;
             }
 
@@ -48,7 +57,7 @@ public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>>
             foregroundAccess.setPosition(location);
             foregroundAccess.get().setOne();
 
-            if ((element.compareTo(settings.minThreshold) >= 0) && (element.compareTo(settings.maxThreshold) <= 0)) {
+            if (element.compareTo(minThreshold) >= 0 && element.compareTo(maxThreshold) <= 0) {
                 thresholdAccess.setPosition(location);
                 thresholdAccess.get().setOne();
             }
@@ -71,10 +80,7 @@ public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>>
     public static void main(String... args) {
         final ImageJ ij = new ImageJ();
         final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L, 0L);
-        final BitType foregroundCutoff = new BitType(true);
-        final BitType minThreshold = new BitType(true);
-        final BitType maxThreshold = new BitType(true);
-        final Settings<BitType> settings = new Settings<>(foregroundCutoff, minThreshold, maxThreshold);
+        final Settings settings = new Settings(1.0, 1.0, 1.0);
 
         final Results results = (Results) ij.op().run(ThresholdVolumeFraction.class, cuboid, settings);
         System.out.println("Thresholded surface volume " + results.thresholdMeshVolume);
@@ -85,16 +91,20 @@ public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>>
     }
     //endregion
 
+    /**
+     * @todo    Make generic with type T, but with double constructor that has a T param, that
+     *          can be used to copy / create elements of T?
+     */
     //region -- Helper classes --
-    public static final class Settings<T> {
+    public static final class Settings {
         /** Minimum value for elements within threshold */
-        public final T minThreshold;
+        public final double minThreshold;
         /** Maximum value for elements within threshold */
-        public final T maxThreshold;
+        public final double maxThreshold;
         /** Elements whose values >= foregroundCutOff are considered foreground */
-        public final T foregroundCutOff;
+        public final double foregroundCutOff;
 
-        public Settings(final T foregroundCutOff, final T minThreshold, final T maxThreshold) {
+        public Settings(final double foregroundCutOff, final double minThreshold, final double maxThreshold) {
             this.foregroundCutOff = foregroundCutOff;
             this.minThreshold = minThreshold;
             this.maxThreshold = maxThreshold;
