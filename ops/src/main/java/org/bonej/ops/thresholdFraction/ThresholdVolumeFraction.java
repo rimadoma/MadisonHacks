@@ -3,35 +3,33 @@ package org.bonej.ops.thresholdFraction;
 import net.imagej.ImageJ;
 import net.imagej.ops.Contingent;
 import net.imagej.ops.Op;
-import net.imagej.ops.Ops;
 import net.imagej.ops.geom.geom3d.mesh.Mesh;
 import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
-import net.imagej.ops.special.function.UnaryFunctionOp;
 import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BitType;
-import net.imglib2.type.numeric.real.DoubleType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.scijava.plugin.Plugin;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * An Op which calculates the volumes thresholded and foreground elements in the interval.
  * The volumes are determined from meshes created with the marching cubes algorithm.
  *
  * @author Richard Domander
- * @todo Prematch Ops in initialize
- * @todo Unit tests for creating mesh masks?
  */
 @Plugin(type = Op.class)
 public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>> extends
         AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings<S>, ThresholdVolumeFraction.Results>
         implements Contingent {
+    /**
+     * @throws NotImplementedException if interval is a Dataset
+     */
     @Override
     public Results compute2(final IterableInterval<T> interval, final Settings<S> settings) {
-        //Crashes with NotImplementedException if interval is a Dataset
         final Img<BitType> thresholdMask = ops().create().img(interval, new BitType());
         final Img<BitType> foregroundMask = ops().create().img(interval, new BitType());
         final long[] location = new long[interval.numDimensions()];
@@ -79,8 +77,8 @@ public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>>
         final Settings<BitType> settings = new Settings<>(foregroundCutoff, minThreshold, maxThreshold);
 
         final Results results = (Results) ij.op().run(ThresholdVolumeFraction.class, cuboid, settings);
-        System.out.println("Thresholded surface volume " + results.thresholdVolume);
-        System.out.println("Foreground surface volume " + results.foregroundVolume);
+        System.out.println("Thresholded surface volume " + results.thresholdMeshVolume);
+        System.out.println("Foreground surface volume " + results.foregroundMeshVolume);
         System.out.println("Volume ratio " + results.volumeRatio);
 
         ij.context().dispose();
@@ -104,22 +102,22 @@ public class ThresholdVolumeFraction<S, T extends NativeType<T> & Comparable<S>>
     }
 
     public static final class Results {
+        /** A mesh created from the elements within the thresholds */
         public final Mesh thresholdMesh;
+        /** A mesh created from the foreground elements */
         public final Mesh foregroundMesh;
-        /** Number of elements found whose value is within thresholds */
-        public final double thresholdVolume;
-        /** Number of elements which are foreground */
-        public final double foregroundVolume;
-        /** Ratio of thresholdElements / foregroundElements */
+        public final double thresholdMeshVolume;
+        public final double foregroundMeshVolume;
+        /** Ratio of threshold & foreground mesh volumes */
         public final double volumeRatio;
 
-        public Results(final Mesh thresholdMesh, final Mesh foregroundMesh, final double thresholdVolume,
-                       final double foregroundVolume) {
+        public Results(final Mesh thresholdMesh, final Mesh foregroundMesh, final double thresholdMeshVolume,
+                       final double foregroundMeshVolume) {
             this.thresholdMesh = thresholdMesh;
             this.foregroundMesh = foregroundMesh;
-            this.thresholdVolume = thresholdVolume;
-            this.foregroundVolume = foregroundVolume;
-            volumeRatio = thresholdVolume / foregroundVolume;
+            this.thresholdMeshVolume = thresholdMeshVolume;
+            this.foregroundMeshVolume = foregroundMeshVolume;
+            volumeRatio = thresholdMeshVolume / foregroundMeshVolume;
         }
     }
     //endregion

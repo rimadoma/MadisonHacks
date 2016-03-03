@@ -4,7 +4,6 @@ import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import net.imagej.ImgPlus;
 import net.imagej.ops.OpService;
-import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.integer.LongType;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.bonej.ops.thresholdFraction.ThresholdVolumeFraction;
@@ -108,8 +107,8 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
 
     /** Display volume data in the IJ results table */
     private void displayResults(final ThresholdVolumeFraction.Results results) {
-        System.out.println("Thresholded surface volume " + results.thresholdVolume);
-        System.out.println("Foreground surface volume " + results.foregroundVolume);
+        System.out.println("Thresholded surface volume " + results.thresholdMeshVolume);
+        System.out.println("Foreground surface volume " + results.foregroundMeshVolume);
         System.out.println("Volume ratio " + results.volumeRatio);
         throw new NotImplementedException();
     }
