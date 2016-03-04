@@ -21,6 +21,6 @@
     <parent>
         <groupId>net.imagej</groupId>
         <artifactId>pom-imagej</artifactId>
-        <version>14.4.1</version>
+        <version>14.7.1</version>
     </parent>
 </project>

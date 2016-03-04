@@ -63,9 +63,9 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & RealType<T>> exte
             }
         }
 
-        final Mesh thresholdMesh = ops().geom().marchingcubes(thresholdMask);
+        final Mesh thresholdMesh = ops().geom().marchingCubes(thresholdMask);
         final double thresholdVolume = ops().geom().size(thresholdMesh).get();
-        final Mesh foregroundMesh = ops().geom().marchingcubes(foregroundMask);
+        final Mesh foregroundMesh = ops().geom().marchingCubes(foregroundMask);
         final double foregroundVolume = ops().geom().size(foregroundMesh).get();
 
         return new Results(thresholdMesh, foregroundMesh, thresholdVolume, foregroundVolume);
