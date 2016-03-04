@@ -16,6 +16,7 @@ import java.util.stream.StreamSupport;
  * @todo How to implement the limit calculations to ROIs option from BoneJ1?
  * @todo How to apply calculations only to areas defined by masks (irregular rois)?
  * @todo How to display Results?
+ * @todo reconcile Settings logic w/ ThresholdVolumeFraction
  */
 @Plugin(type = Op.class)
 public class ThresholdElementFraction<S, T extends Comparable<S>> extends

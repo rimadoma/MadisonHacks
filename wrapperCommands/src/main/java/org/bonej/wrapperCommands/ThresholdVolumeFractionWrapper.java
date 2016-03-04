@@ -24,16 +24,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * @author Richard Domander
- * @todo Check for spatial dimensions?
+ * @todo Check for spatial dimensions? warn if using channel axis or time, etc... as spatial dimension..
  * @todo Confirm that there's no real reason to prevent color / 32-bit images
  * @todo One or two wrappers for ThresholdFraction Ops in BoneJ2?
+ * @todo what to do with axes of different units? warn?
  * @todo How to determine thresholds? What are min & max?
- * @todo Display results with IJ1 Results Table (for now)
+ * @todo Change widgets based on range of dataset's type? callbacks may need tweaking for floating (new > image... > 32-bit)
  * @todo How to display resulting meshes? (Kyle's 3D Viewer branch?)
- * @todo Dimension checking doesn't work
- * @todo Bit depth doesn't work
- * @todo Bit depth label doesn't work
- * @todo Change widgets based on Dataset type
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BoneJ>Volume Fraction")
 public class ThresholdVolumeFractionWrapper extends ContextCommand {
