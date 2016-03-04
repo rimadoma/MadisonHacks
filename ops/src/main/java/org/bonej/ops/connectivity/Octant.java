@@ -8,6 +8,8 @@ import net.imglib2.view.Views;
 /**
  * @author Richard Domander
  * @author Mark Hiner
+ *
+ * @todo Refactor class to support more efficient use
  */
 public class Octant {
     private long foregroundNeighbors;

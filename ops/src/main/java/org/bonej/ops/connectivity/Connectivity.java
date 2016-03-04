@@ -7,6 +7,7 @@ import net.imagej.ops.special.function.AbstractUnaryFunctionOp;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.type.logic.BitType;
+import net.imglib2.view.Views;
 import org.scijava.plugin.Plugin;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -18,9 +19,6 @@ import java.util.Arrays;
  * The euler characteristic of an element is determined from its special 8-neighborhood.
  * The euler characteristics of the elements are summed the get the characteristic of the whole particle.
  * The Op assumes that there is only one continuous foreground particle in the image.
- *
- * @todo Assuming that all axis are linear
- * @todo Assuming that all dimensions are spatial
  *
  * @author Michael Doube
  * @author Richard Domander
@@ -44,6 +42,8 @@ import java.util.Arrays;
  *         Several of the methods are based on Ignacio Arganda-Carreras's
  *         Skeletonize3D_ plugin: <a href="http://imagejdocu.tudor.lu/doku.php?id=plugin:morphology:skeletonize3d:start">
  *         Skeletonize3D homepage</a>
+ * @todo Assuming that all axis are linear
+ * @todo Assuming that all dimensions are spatial
  */
 @Plugin(type = Op.class, name = "connectivityCharacteristics")
 public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Connectivity.Characteristics>
@@ -195,14 +195,9 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return new Characteristics(eulerCharacteristic, deltaChi, connectivity, connectivityDensity);
     }
 
-    @Override
-    public boolean conforms() {
-        return in().numDimensions() == 3;
-    }
-
+    /** @todo Create just one final Octant */
     private double calculateEulerCharacteristic(final ImgPlus<BitType> imgPlus) {
         final int[] eulerSums = new int[(int) imgPlus.dimension(W_INDEX)];
-
         final Cursor<BitType> cursor = imgPlus.localizingCursor();
 
         cursor.forEachRemaining(c -> {
@@ -210,7 +205,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
             long v = cursor.getLongPosition(V_INDEX);
             long w = cursor.getLongPosition(W_INDEX);
             Octant octant = new Octant(imgPlus, u, v, w);
-            eulerSums[(int)w] += getDeltaEuler(octant);
+            eulerSums[(int) w] += getDeltaEuler(octant);
         });
 
         return Arrays.stream(eulerSums).sum() / 8.0;
@@ -274,8 +269,8 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
 
         // there are already 6 * chiZero in 2 * e, so remove 3 * chiZero
 
-        final long d = getEdgeVertices(connectivityAccess) + chiZero;
-        final long a = getFaceVertices(connectivityAccess);
+        final long d = countStackEdgeVertexIntersections(connectivityAccess) + chiZero;
+        final long a = countStackFaceVertexIntersections(connectivityAccess);
         final long b = getFaceEdges(connectivityAccess);
 
         final double chiOne = d - e;
@@ -285,15 +280,159 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     private long getFaceEdges(final ConnectivityAccess connectivityAccess) {
+        long intersections = 0;
+
+        // uv-plane
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v <= connectivityAccess.vSize; v++) {
+                for (long u = 0; u <= connectivityAccess.uSize; u++) {
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    connectivityAccess.access.setPosition(v, V_INDEX);
+                    final boolean a = connectivityAccess.access.get().get();
+                    if (a) {
+                        intersections = intersections + 2;
+                        continue;
+                    }
+
+                    connectivityAccess.access.setPosition(u - 1, U_INDEX);
+                    connectivityAccess.access.setPosition(v, V_INDEX);
+                    final boolean b = connectivityAccess.access.get().get();
+                    if (b) {
+                        intersections++;
+                    }
+
+                    connectivityAccess.access.setPosition(u, U_INDEX);
+                    connectivityAccess.access.setPosition(v - 1, V_INDEX);
+                    final boolean c = connectivityAccess.access.get().get();
+                    if (c) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
         throw new NotImplementedException();
+
+        //return intersections;
     }
 
-    private long getFaceVertices(final ConnectivityAccess connectivityAccess) {
-        throw new NotImplementedException();
+    private long countStackFaceVertexIntersections(final ConnectivityAccess connectivityAccess) {
+        long intersections = 0;
+
+        // uv-plane faces
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v++) {
+                for (long u = 0; u < connectivityAccess.uSize; u++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, u, v, U_INDEX, V_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        // vw-plane faces
+        for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+            connectivityAccess.access.setPosition(u, U_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v++) {
+                for (long w = 1; w < connectivityAccess.wSize; w++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, v, w, V_INDEX, W_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        // uw-plane faces
+        for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+            connectivityAccess.access.setPosition(v, V_INDEX);
+            for (long u = 1; u < connectivityAccess.uSize; u++) {
+                for (long w = 1; w < connectivityAccess.wSize; w++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, u, w, U_INDEX, W_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        return intersections;
     }
 
-    private long getEdgeVertices(final ConnectivityAccess connectivityAccess) {
-        throw new NotImplementedException();
+    private static boolean isNeighborhoodForeground(final RandomAccess<BitType> access, final long pos0,
+                                                    final long pos1, final int dim0, final int dim1) {
+        access.setPosition(pos0, dim0);
+        access.setPosition(pos1, dim1);
+        boolean a = access.get().get();
+
+        access.setPosition(pos0 - 1, dim0);
+        access.setPosition(pos1, dim1);
+        boolean b = access.get().get();
+
+        access.setPosition(pos0, dim0);
+        access.setPosition(pos1 - 1, dim1);
+        boolean c = access.get().get();
+
+        access.setPosition(pos0 - 1, dim0);
+        access.setPosition(pos1 - 1, dim1);
+        boolean d = access.get().get();
+
+        return a || b || c || d;
+    }
+
+    private long countStackEdgeVertexIntersections(final ConnectivityAccess connectivityAccess) {
+        long intersections = 0;
+
+        // uv-plane edges
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long u = 1; u < connectivityAccess.uSize; u++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, u, U_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        // vw-plane edges
+        for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
+            connectivityAccess.access.setPosition(w, W_INDEX);
+            for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+                connectivityAccess.access.setPosition(u, U_INDEX);
+                for (long v = 1; v < connectivityAccess.vSize; v++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, v, V_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        // uw-plane edges
+        for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+            connectivityAccess.access.setPosition(u, U_INDEX);
+            for (long v = 0; v < connectivityAccess.vSize; v += connectivityAccess.vInc) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long w = 1; w < connectivityAccess.wSize; w++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, w, W_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        return intersections;
+    }
+
+    private boolean isNeighborhoodForeground(final RandomAccess<BitType> access, final long pos, final int dim) {
+        access.setPosition(pos, dim);
+        boolean a = access.get().get();
+
+        access.setPosition(pos - 1, dim);
+        boolean b = access.get().get();
+
+        return a || b;
     }
 
     /** Count the number of foreground elements on the faces that touch the borders of the Img interval */
@@ -410,6 +549,11 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return connectivity / calibratedImgVolume;
     }
 
+    @Override
+    public boolean conforms() {
+        return in().numDimensions() == 3;
+    }
+
     //region -- Helper classes --
     public final class Characteristics {
         public double eulerCharacteristic;
@@ -456,7 +600,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         public final long wInc;
 
         public ConnectivityAccess(final ImgPlus<BitType> img) {
-            access = img.randomAccess();
+            access = Views.extendZero(img).randomAccess();
 
             uSize = img.dimension(U_INDEX);
             vSize = img.dimension(V_INDEX);
