@@ -7,21 +7,22 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * A wrapper class for ResultsTable used to insert measurements according to the
- * following policy:
+ * A class which inserts results to the given ResultsTable with a custom policy
+ * By default it uses the default ResultsTable
+ *
+ * The custom policy is as follows:
  * 1)   If there are no rows with the given label, then add a new row.
  * 2)   If there are rows with the given label, but there is not a column
- * with the given heading, then add a column, and set its value on the first row
- * with the label.
+ *      with the given heading, then add a column, and set its value on the first row
+ *      with the label.
  * 3)   If there are rows with the given label, and there's a column with the given heading,
- * then find the first row which has no value in   the column (Double.NaN), and add the new value there.
- * If there are no such rows, then add a new row.
+ *      then find the first row which has no value in the column (== Double.NaN),
+ *      and add the new value there.
+ *      If there are no such rows, then add a new row.
  *
- * By default the class uses the instance returned by
- * ResultsTable.getResultsTable()
- *
- * @author Richard Domander
  * @author Michael Doube
+ * @author Richard Domander
+ *
  * @todo add behaviour for headless mode: ResultsTable.saveAs...?
  */
 public class ResultsInserter {
