@@ -40,16 +40,20 @@ import static org.scijava.ui.DialogPrompt.Result;
 @Plugin(type = Command.class, menuPath = "Plugins>BoneJ>Volume Fraction")
 public class ThresholdVolumeFractionWrapper extends ContextCommand {
     private static final String BIT_DEPTH_LABEL = "Image bit-depth: ";
+
     @Parameter(visibility = ItemVisibility.MESSAGE, description = "Maximum element value for the image is 2^depth - 1")
     private static String bitDepthMessage = BIT_DEPTH_LABEL + "N/A";
+
     private long thresholdBoundary;
+
     /**
      * @implNote Set required = false to disable the default error message
-     * @implNote Use Dataset for now because only they can be automatically populated
+     * @implNote Use Dataset for now because validBitDepth has incompatible implementation in ImgPlus
      * ImgPlus etc. ok in ImageJ POM >= 14.6.2
      */
     @Parameter(initializer = "checkImage", required = false)
     private Dataset activeImage;
+
     @Parameter(label = "Foreground cut-off", persist = false, callback = "enforceThresholds",
             description = "Voxels values above this cut-off are considered foreground (bone)")
     private double foregroundCutOff;
