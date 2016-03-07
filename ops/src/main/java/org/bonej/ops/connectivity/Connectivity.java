@@ -598,7 +598,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         final double elementVolume =
                 connectivityAccess.uElementSize * connectivityAccess.vElementSize * connectivityAccess.wElementSize;
         final double imgVolume = connectivityAccess.uSize * connectivityAccess.vSize * connectivityAccess.wSize;
-        final double calibratedImgVolume = imgVolume / elementVolume;
+        final double calibratedImgVolume = imgVolume * elementVolume;
 
         return connectivity / calibratedImgVolume;
     }

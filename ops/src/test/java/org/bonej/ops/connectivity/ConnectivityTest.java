@@ -80,7 +80,7 @@ public class ConnectivityTest {
                 (CUBOID_WIDTH + TOTAL_PADDING) * (CUBOID_HEIGHT + TOTAL_PADDING) * (CUBOID_DEPTH + TOTAL_PADDING);
 
         final double[] CALIBRATION = {0.2, 0.2, 0.2};
-        final double ELEMENT_VOLUME = Arrays.stream(CALIBRATION).reduce((i, j) -> i * j).getAsDouble();
+        final double ELEMENT_VOLUME = 0.2 * 0.2 * 0.2;
         final double EXPECTED_CONNECTIVITY = 5.0;
         final double EXPECTED_DENSITY = EXPECTED_CONNECTIVITY / (CUBOID_VOLUME * ELEMENT_VOLUME);
 
