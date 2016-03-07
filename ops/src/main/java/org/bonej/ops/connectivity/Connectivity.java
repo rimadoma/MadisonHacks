@@ -17,32 +17,32 @@ import java.util.Arrays;
  * by calculating the Euler characteristics of its elements.
  * The euler characteristic of an element is determined from its special 8-neighborhood.
  * The euler characteristics of the elements are summed the get the characteristic of the whole particle.
- * The Op assumes that there is only one continuous foreground particle in the image.
+ *
+ * The algorithms here are based on the following articles:
+ * Toriwaki J, Yonekura T (2002) Euler Number and Connectivity Indexes of a Three Dimensional Digital Picture.
+ * Forma 17: 183-209.
+ * <a href="http://www.scipress.org/journals/forma/abstract/1703/17030183.html">
+ * http://www.scipress.org/journals/forma/abstract/1703/17030183.html</a>
+ *
+ * Odgaard A, Gundersen HJG (1993) Quantification of connectivity in cancellous bone,
+ * with special emphasis on 3-D reconstructions.
+ * Bone 14: 173-182.
+ * <a href="http://dx.doi.org/10.1016/8756-3282(93)90245-6">doi:10.1016/8756-3282(93)90245-6</a>
+ *
+ * Lee TC, Kashyap RL, Chu CN (1994) Building Skeleton Models via 3- Medial Surface Axis Thinning Algorithms.
+ * CVGIP: Graphical Models and Image Processing 56: 462-478.
+ * <a href="http://dx.doi.org/10.1006/cgip.1994.1042">doi:10.1006/cgip.1994.1042</a>
+ *
+ * Several of the methods are based on Ignacio Arganda-Carreras's
+ * Skeletonize3D_ plugin: <a href="http://imagejdocu.tudor.lu/doku.php?id=plugin:morphology:skeletonize3d:start">
+ * Skeletonize3D homepage</a>
  *
  * @author Michael Doube
  * @author Richard Domander
- *
- *         The algorithms here are based on the following articles:
- *         Toriwaki J, Yonekura T (2002) Euler Number and Connectivity Indexes of a
- *         Three Dimensional Digital Picture. Forma 17: 183-209.
- *         <a href="http://www.scipress.org/journals/forma/abstract/1703/17030183.html">
- *         http://www.scipress.org/journals/forma/abstract/1703/17030183.html</a>
- *
- *         Odgaard A, Gundersen HJG (1993) Quantification of connectivity in
- *         cancellous bone, with special emphasis on 3-D reconstructions. Bone 14:
- *         173-182.
- *         <a href="http://dx.doi.org/10.1016/8756-3282(93)90245-6">doi:10.1016/8756-3282(93)90245-6</a>
- *
- *         Lee TC, Kashyap RL, Chu CN (1994) Building Skeleton Models via 3-D
- *         Medial Surface Axis Thinning Algorithms. CVGIP: Graphical Models and
- *         Image Processing 56: 462-478.
- *         <a href="http://dx.doi.org/10.1006/cgip.1994.1042">doi:10.1006/cgip.1994.1042</a>
- *
- *         Several of the methods are based on Ignacio Arganda-Carreras's
- *         Skeletonize3D_ plugin: <a href="http://imagejdocu.tudor.lu/doku.php?id=plugin:morphology:skeletonize3d:start">
- *         Skeletonize3D homepage</a>
- * @todo Assuming that all axis are linear
- * @todo Assuming that all dimensions are spatial
+ * @implNote Assuming that all axis are linear
+ * @implNote Assuming that all dimensions are spatial
+ * @implNote Assuming that there's only one continuous foreground particle in the image
+ * @todo Split into smaller ops
  */
 @Plugin(type = Op.class, name = "connectivityCharacteristics")
 public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Connectivity.Characteristics>

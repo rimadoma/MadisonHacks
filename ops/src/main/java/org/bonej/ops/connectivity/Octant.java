@@ -5,9 +5,14 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.view.Views;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
+ * A convenience class for storing a special 8-neighborhood in a 3D BitType interval
+ *
  * @author Richard Domander
  * @author Mark Hiner
+ * @todo Unit tests
  */
 public final class Octant {
     private final boolean[] neighborhood = new boolean[8];
@@ -18,11 +23,17 @@ public final class Octant {
         setInterval(interval);
     }
 
-    public void setInterval(RandomAccessibleInterval<BitType> interval) {
+    public void setInterval(RandomAccessibleInterval<BitType> interval) throws NullPointerException {
+        checkNotNull(interval, "Interval cannot be set null");
+
         access = Views.extendZero(interval).randomAccess();
     }
 
-    public boolean isNeighborForeground(int n) {
+    /**
+     * Check if the nth neighbor is foreground
+     * @param n 1 <= n <= 8
+     */
+    public boolean isNeighborForeground(int n) throws ArrayIndexOutOfBoundsException {
         return neighborhood[n - 1];
     }
 
