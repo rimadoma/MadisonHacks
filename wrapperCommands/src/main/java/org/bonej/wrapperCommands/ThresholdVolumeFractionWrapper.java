@@ -2,11 +2,10 @@ package org.bonej.wrapperCommands;
 
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
-import net.imagej.axis.CalibratedAxis;
 import net.imagej.ops.OpService;
-import net.imagej.space.AnnotatedSpace;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.bonej.ops.thresholdFraction.ThresholdVolumeFraction;
+import org.bonej.utilities.CalibratedAxisUtil;
 import org.bonej.utilities.ResultsInserter;
 import org.scijava.ItemVisibility;
 import org.scijava.command.Command;
@@ -20,7 +19,6 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -141,12 +139,12 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     private void checkImage() {
         try {
             checkNotNull(activeImage, "No image open");
-            checkArgument(countSpatialDimensions(activeImage) == 3, "Image must be 3D");
+            checkArgument(CalibratedAxisUtil.countSpatialDimensions(activeImage) == 3, "Image must be 3D");
         } catch (IllegalArgumentException | NullPointerException e) {
             cancel(e.getMessage());
         }
 
-        if (hasExtraSpatialDimensions(activeImage)) {
+        if (CalibratedAxisUtil.hasNonSpatialDimensions(activeImage)) {
             boolean runPlugin = uiService.showDialog(
                     "The image has non-spatial dimensions, which may affect the results.\n Do you want to continue?",
                     MessageType.WARNING_MESSAGE, OptionType.OK_CANCEL_OPTION) == Result.OK_OPTION;
@@ -156,18 +154,6 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
         }
 
         initThresholds();
-    }
-
-    private <T extends AnnotatedSpace<CalibratedAxis>> long countSpatialDimensions(final T space) {
-        final CalibratedAxis[] axes = new CalibratedAxis[space.numDimensions()];
-        space.axes(axes);
-        return Arrays.stream(axes).filter(a -> a.type().isSpatial()).count();
-    }
-
-    private <T extends AnnotatedSpace<CalibratedAxis>> boolean hasExtraSpatialDimensions(final T space) {
-        final CalibratedAxis[] axes = new CalibratedAxis[space.numDimensions()];
-        space.axes(axes);
-        return Arrays.stream(axes).anyMatch(a -> !a.type().isSpatial());
     }
 
     private void initThresholds() {
