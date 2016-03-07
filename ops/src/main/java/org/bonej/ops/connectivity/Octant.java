@@ -8,18 +8,18 @@ import net.imglib2.view.Views;
 /**
  * @author Richard Domander
  * @author Mark Hiner
- *
- * @todo Refactor class to support more efficient use
  */
-public class Octant {
-    private long foregroundNeighbors;
+public final class Octant {
     private final boolean[] neighborhood = new boolean[8];
-    private RandomAccessibleInterval<BitType> interval;
+    private long foregroundNeighbors;
+    private RandomAccess<BitType> access;
 
-    public Octant(final RandomAccessibleInterval<BitType> interval, final long u, final long v, final long w) {
+    public Octant(final RandomAccessibleInterval<BitType> interval) {
         setInterval(interval);
-        setNeighborhood(u, v, w);
-        countForegroundNeighbors();
+    }
+
+    public void setInterval(RandomAccessibleInterval<BitType> interval) {
+        access = Views.extendZero(interval).randomAccess();
     }
 
     public boolean isNeighborForeground(int n) {
@@ -30,13 +30,7 @@ public class Octant {
         return foregroundNeighbors == 0;
     }
 
-    public void setInterval(RandomAccessibleInterval<BitType> interval) {
-        this.interval = interval;
-    }
-
     public void setNeighborhood(final long u, final long v, final long w) {
-        final RandomAccess<BitType> access = Views.extendZero(interval).randomAccess();
-
         neighborhood[0] = getAtLocation(access, u - 1, v - 1, w - 1);
         neighborhood[1] = getAtLocation(access, u - 1, v, w - 1);
         neighborhood[2] = getAtLocation(access, u, v - 1, w - 1);
@@ -45,6 +39,8 @@ public class Octant {
         neighborhood[5] = getAtLocation(access, u - 1, v, w);
         neighborhood[6] = getAtLocation(access, u, v - 1, w);
         neighborhood[7] = getAtLocation(access, u, v, w);
+
+        countForegroundNeighbors();
     }
 
     private void countForegroundNeighbors() {

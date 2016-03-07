@@ -198,12 +198,13 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     private double calculateEulerCharacteristic(final ImgPlus<BitType> imgPlus) {
         final int[] eulerSums = new int[(int) imgPlus.dimension(W_INDEX)];
         final Cursor<BitType> cursor = imgPlus.localizingCursor();
+        final Octant octant = new Octant(imgPlus);
 
         cursor.forEachRemaining(c -> {
             long u = cursor.getLongPosition(U_INDEX);
             long v = cursor.getLongPosition(V_INDEX);
             long w = cursor.getLongPosition(W_INDEX);
-            Octant octant = new Octant(imgPlus, u, v, w);
+            octant.setNeighborhood(u, v, w);
             eulerSums[(int) w] += getDeltaEuler(octant);
         });
 
