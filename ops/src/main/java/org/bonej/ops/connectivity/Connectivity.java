@@ -9,7 +9,6 @@ import net.imglib2.RandomAccess;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.view.Views;
 import org.scijava.plugin.Plugin;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.Arrays;
 
@@ -279,10 +278,13 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return chiTwo / 2.0 + chiOne / 4.0 + chiZero / 8.0;
     }
 
+    /**
+     * @implNote Blindly copying legacy code because I don't know what's happening here
+     */
     private long getFaceEdges(final ConnectivityAccess connectivityAccess) {
         long intersections = 0;
 
-        // uv-plane
+        // uv-plane faces
         for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
             connectivityAccess.access.setPosition(w, W_INDEX);
             for (long v = 0; v <= connectivityAccess.vSize; v++) {
@@ -312,9 +314,61 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
             }
         }
 
-        throw new NotImplementedException();
+        // @todo any reason this stuff can't be done in the same loop?
+        // uw-plane faces
+        for (long v = 0; v <= connectivityAccess.vSize; v += connectivityAccess.vInc) {
+            connectivityAccess.access.setPosition(v, V_INDEX);
+            for (long u = 0; u <= connectivityAccess.uSize; u++) {
+                connectivityAccess.access.setPosition(u, U_INDEX);
+                // @todo why does w (z) start from 1?
+                for (long w = 1; w <= connectivityAccess.wSize; w++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, w, W_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
 
-        //return intersections;
+        for (long v = 0; v <= connectivityAccess.vSize; v += connectivityAccess.vInc) {
+            connectivityAccess.access.setPosition(v, V_INDEX);
+            for (long w = 0; w <= connectivityAccess.wSize; w++) {
+                connectivityAccess.access.setPosition(w, W_INDEX);
+                // @todo should u start from 1 here?
+                for (long u = 0; u <= connectivityAccess.uSize; u++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, u, U_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        // @todo any reason this stuff can't be done in the same loop?
+        // vw-plane faces
+        for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+            connectivityAccess.access.setPosition(u, U_INDEX);
+            for (long v = 0; v <= connectivityAccess.vSize; v++) {
+                connectivityAccess.access.setPosition(v, V_INDEX);
+                for (long w = 1; w <= connectivityAccess.wSize; w++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, w, W_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        for (long u = 0; u < connectivityAccess.uSize; u += connectivityAccess.uInc) {
+            connectivityAccess.access.setPosition(u, U_INDEX);
+            for (long w = 0; w <= connectivityAccess.wSize; w++) {
+                connectivityAccess.access.setPosition(w, W_INDEX);
+                for (long v = 1; v <= connectivityAccess.vSize; v++) {
+                    if (isNeighborhoodForeground(connectivityAccess.access, v, W_INDEX)) {
+                        intersections++;
+                    }
+                }
+            }
+        }
+
+        return intersections;
     }
 
     private long countStackFaceVertexIntersections(final ConnectivityAccess connectivityAccess) {
