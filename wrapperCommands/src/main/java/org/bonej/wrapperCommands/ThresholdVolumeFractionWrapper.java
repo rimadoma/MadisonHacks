@@ -2,7 +2,9 @@ package org.bonej.wrapperCommands;
 
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
+import net.imagej.axis.CalibratedAxis;
 import net.imagej.ops.OpService;
+import net.imagej.space.AnnotatedSpace;
 import org.bonej.ops.testImageGenerators.CuboidCreator;
 import org.bonej.ops.thresholdFraction.ThresholdVolumeFraction;
 import org.bonej.utilities.ResultsInserter;
@@ -18,13 +20,16 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Arrays;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.scijava.ui.DialogPrompt.MessageType;
+import static org.scijava.ui.DialogPrompt.OptionType;
+import static org.scijava.ui.DialogPrompt.Result;
 
 /**
  * @author Richard Domander
- * @todo Check for spatial dimensions? warn if using channel axis or time, etc... as spatial dimension..
  * @todo Confirm that there's no real reason to prevent color / 32-bit images
  * @todo One or two wrappers for ThresholdFraction Ops in BoneJ2?
  * @todo what to do with axes of different units? warn?
@@ -35,8 +40,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @Plugin(type = Command.class, menuPath = "Plugins>BoneJ>Volume Fraction")
 public class ThresholdVolumeFractionWrapper extends ContextCommand {
     private static final String BIT_DEPTH_LABEL = "Image bit-depth: ";
+    @Parameter(visibility = ItemVisibility.MESSAGE, description = "Maximum element value for the image is 2^depth - 1")
+    private static String bitDepthMessage = BIT_DEPTH_LABEL + "N/A";
     private long thresholdBoundary;
-
     /**
      * @implNote Set required = false to disable the default error message
      * @implNote Use Dataset for now because only they can be automatically populated
@@ -44,10 +50,6 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
      */
     @Parameter(initializer = "checkImage", required = false)
     private Dataset activeImage;
-
-    @Parameter(visibility = ItemVisibility.MESSAGE, description = "Maximum element value for the image is 2^depth - 1")
-    private static String bitDepthMessage = BIT_DEPTH_LABEL + "N/A";
-
     @Parameter(label = "Foreground cut-off", persist = false, callback = "enforceThresholds",
             description = "Voxels values above this cut-off are considered foreground (bone)")
     private double foregroundCutOff;
@@ -74,6 +76,13 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     @Parameter
     private UIService uiService;
 
+    //region --Utility methods--
+    public static void main(String... args) {
+        final ImageJ ij = net.imagej.Main.launch(args);
+        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L);
+        ij.ui().show(cuboid);
+    }
+
     @Override
     public void run() {
         final ThresholdVolumeFraction.Settings settings =
@@ -88,21 +97,16 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
             showSurfaces(results);
         }
     }
-
-    //region --Utility methods--
-    public static void main(String... args) {
-        final ImageJ ij = net.imagej.Main.launch(args);
-        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L);
-        ij.ui().show(cuboid);
-    }
     //endregion
 
     //region --Helper methods--
 
-    /** Display volume data in the IJ results table
-     *  @todo add units
-     *  @todo show calibrated values
-     * */
+    /**
+     * Display volume data in the IJ results table
+     *
+     * @todo add units
+     * @todo show calibrated values
+     */
     private void displayResults(final ThresholdVolumeFraction.Results results) {
         ResultsInserter resultInserter = new ResultsInserter();
         final String title = activeImage.getName();
@@ -133,11 +137,33 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     private void checkImage() {
         try {
             checkNotNull(activeImage, "No image open");
-            checkArgument(activeImage.numDimensions() == 3, "Image must be three dimensional");
-            initThresholds();
+            checkArgument(countSpatialDimensions(activeImage) == 3, "Image must be 3D");
         } catch (IllegalArgumentException | NullPointerException e) {
             cancel(e.getMessage());
         }
+
+        if (hasExtraSpatialDimensions(activeImage)) {
+            boolean runPlugin = uiService.showDialog(
+                    "The image has non-spatial dimensions, which may affect the results.\n Do you want to continue?",
+                    MessageType.WARNING_MESSAGE, OptionType.OK_CANCEL_OPTION) == Result.OK_OPTION;
+            if (!runPlugin) {
+                cancel(null);
+            }
+        }
+
+        initThresholds();
+    }
+
+    private <T extends AnnotatedSpace<CalibratedAxis>> long countSpatialDimensions(final T space) {
+        final CalibratedAxis[] axes = new CalibratedAxis[space.numDimensions()];
+        space.axes(axes);
+        return Arrays.stream(axes).filter(a -> a.type().isSpatial()).count();
+    }
+
+    private <T extends AnnotatedSpace<CalibratedAxis>> boolean hasExtraSpatialDimensions(final T space) {
+        final CalibratedAxis[] axes = new CalibratedAxis[space.numDimensions()];
+        space.axes(axes);
+        return Arrays.stream(axes).anyMatch(a -> !a.type().isSpatial());
     }
 
     private void initThresholds() {
