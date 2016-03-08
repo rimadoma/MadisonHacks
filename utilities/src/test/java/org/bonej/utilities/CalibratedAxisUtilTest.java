@@ -6,6 +6,7 @@ import net.imagej.ImgPlus;
 import net.imagej.axis.Axes;
 import net.imagej.axis.AxisType;
 import net.imagej.axis.CalibratedAxis;
+import net.imagej.axis.DefaultLinearAxis;
 import net.imagej.ops.Ops;
 import net.imagej.ops.special.function.BinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
@@ -104,5 +105,81 @@ public class CalibratedAxisUtilTest {
         final Stream<CalibratedAxis> result = CalibratedAxisUtil.getAxisStream(null);
 
         assertFalse(result.findAny().isPresent());
+    }
+
+    @Test
+    public void testUnitOfSpace() throws AssertionError {
+        final String unit = "mm";
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, unit);
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y, unit);
+        final FinalDimensions dimensions = new FinalDimensions(10, 10);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
+
+        Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+
+        assertTrue("Unit String should be present", result.isPresent());
+        assertEquals("Unit String should be " + unit, unit, result.get());
+    }
+
+    @Test
+    public void testUnitOfSpaceReturnsEmptyIfAxisHaveDifferentUnits() throws AssertionError {
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, "mm");
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y, "cm");
+        final FinalDimensions dimensions = new FinalDimensions(10, 10);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
+
+        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+
+        assertFalse("Optional should be empty", result.isPresent());
+    }
+
+    @Test
+    public void testUnitOfSpaceReturnsEmptyIfSpaceIsNull() throws AssertionError {
+        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(null);
+
+        assertFalse("Optional should be empty", result.isPresent());
+    }
+
+    @Test
+    public void testUnitOfSpaceReturnsEmptyIfUnitStringIsNull() throws AssertionError {
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, "mm");
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y, null);
+        final FinalDimensions dimensions = new FinalDimensions(10, 10);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
+
+        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+
+        assertFalse("Optional should be empty", result.isPresent());
+    }
+
+    @Test
+    public void testUnitOfSpaceReturnsEmptyIfUnitStringIsEmpty() throws AssertionError {
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, "");
+        final FinalDimensions dimensions = new FinalDimensions(10L);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis);
+
+        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+
+        assertFalse("Optional should be empty", result.isPresent());
+    }
+
+    @Test
+    public void testCalibratedElementSize() throws AssertionError {
+        final double scale = 0.5;
+        final double expectedSize = scale * scale;
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, scale);
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y, scale);
+        final DefaultLinearAxis timeAxis = new DefaultLinearAxis(Axes.TIME, scale);
+        final FinalDimensions dimensions = new FinalDimensions(10, 10, 10);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis, timeAxis);
+
+        final double result = CalibratedAxisUtil.calibratedElementSize(imgPlus);
+
+        assertEquals("Incorrect calibrated element size", expectedSize, result, 1e-12);
     }
 }

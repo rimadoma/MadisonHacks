@@ -19,6 +19,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -30,7 +31,6 @@ import static org.scijava.ui.DialogPrompt.Result;
  * @author Richard Domander
  * @todo Confirm that there's no real reason to prevent color / 32-bit images
  * @todo One or two wrappers for ThresholdFraction Ops in BoneJ2?
- * @todo what to do with axes of different units? warn?
  * @todo How to determine thresholds? What are min & max?
  * @todo Change widgets based on range of dataset's type? callbacks may need tweaking for floating (new > image... > 32-bit)
  * @todo How to display resulting meshes? (Kyle's 3D Viewer branch?)
@@ -47,7 +47,6 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     /**
      * @implNote Set required = false to disable the default error message
      * @implNote Use Dataset for now because validBitDepth has incompatible implementation in ImgPlus
-     * ImgPlus etc. ok in ImageJ POM >= 14.6.2
      */
     @Parameter(initializer = "checkImage", required = false)
     private Dataset activeImage;
@@ -63,7 +62,7 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     @Parameter(label = "Maximum threshold value", persist = false, min = "0", callback = "enforceThresholds")
     private double maxThreshold;
 
-    @Parameter(label = "Show 3D surfaces", description = "Show the sample and mineralized bone surfaces in 3D")
+    @Parameter(label = "Show 3D surfaces", description = "Show the sample and bone surfaces in 3D")
     private boolean show3DResult = false;
 
     @Parameter(label = "Help", callback = "openHelpPage")
@@ -103,16 +102,27 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
 
     //region --Helper methods--
 
-    /**
-     * Display volume data in the IJ results table
-     *
-     * @todo add units
-     * @todo show calibrated values
-     */
+    /** Display volume data in the IJ results table */
     private void displayResults(final ThresholdVolumeFraction.Results results) {
-        ResultsInserter resultInserter = new ResultsInserter();
-        final String title = activeImage.getName();
-        resultInserter.setMeasurementInFirstFreeRow(title, "Bone volume", results.foregroundMeshVolume);
+        final ResultsInserter resultInserter = new ResultsInserter();
+        final String label = activeImage.getName();
+        final double elementVolume = CalibratedAxisUtil.calibratedElementSize(activeImage);
+        final double sampleVolume = results.foregroundMeshVolume * elementVolume;
+        final double boneVolume = results.thresholdMeshVolume * elementVolume;
+        final Optional<String> unit = CalibratedAxisUtil.unitOfSpace(activeImage);
+        final String unitSuffix;
+
+        if (!unit.isPresent()) {
+            uiService.showDialog("Could not determine the unit of calibration - showing plain values",
+                    MessageType.WARNING_MESSAGE);
+            unitSuffix = "";
+        } else {
+            unitSuffix = "(" + unit.get() + ")";
+        }
+
+        resultInserter.setMeasurementInFirstFreeRow(label, "Bone volume " + unitSuffix, boneVolume);
+        resultInserter.setMeasurementInFirstFreeRow(label, "Sample volume " + unitSuffix, sampleVolume);
+        resultInserter.setMeasurementInFirstFreeRow(label, "Volume ratio", results.volumeRatio);
         resultInserter.showTable();
     }
 
