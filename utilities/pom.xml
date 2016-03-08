@@ -28,9 +28,17 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>net.imagej</groupId>
             <artifactId>ij</artifactId>
+        </dependency>
+
+        <!-- javax.annotation.* in here-->
+        <dependency>
+            <groupId>net.sourceforge.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>1.3.7</version>
         </dependency>
     </dependencies>
 </project>
