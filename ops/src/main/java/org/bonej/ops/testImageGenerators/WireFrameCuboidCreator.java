@@ -22,7 +22,6 @@ import org.scijava.plugin.Plugin;
  * Can be used, e.g. for testing other Ops or Plugins.
  *
  * @author Richard Domander
- * @todo Make Unary with CuboidInfo as input?
  * @todo Add menu path?
  */
 @Plugin(type = Op.class, name = "wireFrameCuboidCreator", menuPath = "Plugins>Test Images>Wire-frame cuboid")
@@ -116,10 +115,6 @@ public class WireFrameCuboidCreator extends AbstractNullaryHybridCF<ImgPlus<BitT
         return new ImgPlus<>(img, "Wire-frame cuboid", new AxisType[]{Axes.X, Axes.Y, Axes.Z}, calibration);
     }
 
-    /**
-     * @todo Make shared so that can be shared with CuboidCreator?
-     * @todo Add calibration[]?
-     */
     private final static class CuboidInfo {
         public long u0;
         public long u1;

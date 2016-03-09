@@ -5,6 +5,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.view.Views;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -23,24 +24,36 @@ public final class Octant {
         setInterval(interval);
     }
 
-    public void setInterval(RandomAccessibleInterval<BitType> interval) throws NullPointerException {
+    /**
+     * Sets the interval where the neighborhood is located
+     *
+     * @throws NullPointerException     if interval == null
+     * @throws IllegalArgumentException if interval has less than three dimensions
+     */
+    public void setInterval(RandomAccessibleInterval<BitType> interval)
+            throws NullPointerException, IllegalArgumentException {
         checkNotNull(interval, "Interval cannot be set null");
+        checkArgument(interval.numDimensions() >= 3, "Interval must have at least three dimensions");
 
         access = Views.extendZero(interval).randomAccess();
     }
 
     /**
-     * Check if the nth neighbor is foreground
+     * Check if the nth neighbor in the 8-neighborhood is foreground
+     *
      * @param n 1 <= n <= 8
+     * @throws ArrayIndexOutOfBoundsException if n < 1 || n > 8
      */
-    public boolean isNeighborForeground(int n) throws ArrayIndexOutOfBoundsException {
+    public boolean isNeighborForeground(final int n) throws ArrayIndexOutOfBoundsException {
         return neighborhood[n - 1];
     }
 
+    /** True if none of the elements in the neighborhood are foreground (true) */
     public boolean isNeighborhoodEmpty() {
         return foregroundNeighbors == 0;
     }
 
+    /** Set the starting coordinates of the neighborhood in the interval */
     public void setNeighborhood(final long u, final long v, final long w) {
         neighborhood[0] = getAtLocation(access, u - 1, v - 1, w - 1);
         neighborhood[1] = getAtLocation(access, u - 1, v, w - 1);
@@ -63,7 +76,7 @@ public final class Octant {
         }
     }
 
-    private boolean getAtLocation(RandomAccess<BitType> access, long u, long v, long w) {
+    private boolean getAtLocation(final RandomAccess<BitType> access, final long u, final long v, final long w) {
         access.setPosition(u, 0);
         access.setPosition(v, 1);
         access.setPosition(w, 2);

@@ -41,7 +41,7 @@ public class ThresholdElementFractionTest {
         final LongType maxThreshold = new LongType(9L);
         final Settings<LongType> settings = new Settings<>(foregroundCutOff, minThreshold, maxThreshold);
 
-        // Create test img
+        // Create test set
         final long intervalSize = 11L;
         final Img<LongType> img = imgCreator.compute1(new FinalDimensions(intervalSize));
         RandomAccess<LongType> access = img.randomAccess();

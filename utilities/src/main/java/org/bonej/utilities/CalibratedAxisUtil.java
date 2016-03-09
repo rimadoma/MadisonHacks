@@ -4,6 +4,8 @@ import com.google.common.base.Strings;
 import net.imagej.axis.CalibratedAxis;
 import net.imagej.space.AnnotatedSpace;
 import net.imglib2.Dimensions;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.logic.BitType;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -102,6 +104,32 @@ public final class CalibratedAxisUtil {
         }
 
         return calibratedElementSize;
+    }
+
+    /**
+     * Returns the calibrated size of the given space
+     *
+     * @implNote Only works with linear axes
+     * @todo Can an AnnotatedSpace have zero dims?
+     * @todo Check that units match
+     * @todo Ignore non spatial axes
+     * @todo checkNotNull
+     * @todo unit tests
+     * @todo share code with calibratedElementSize
+     * @todo dimensionStream
+     */
+    public static <T extends AnnotatedSpace<CalibratedAxis> & Dimensions> double calibratedSpaceSize(final T space) {
+        double elementSize = calibratedElementSize(space);
+
+        final int numDimensions = space.numDimensions();
+        double spaceSize = 1.0;
+
+        for (int d = 0; d < numDimensions; d++) {
+            final long dimensionSize = space.dimension(d);
+            spaceSize = spaceSize * dimensionSize;
+        }
+
+        return elementSize * spaceSize;
     }
 
     /**

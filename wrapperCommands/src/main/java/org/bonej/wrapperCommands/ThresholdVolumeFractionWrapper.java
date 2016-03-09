@@ -34,6 +34,7 @@ import static org.scijava.ui.DialogPrompt.Result;
  * @todo How to determine thresholds? What are min & max?
  * @todo Change widgets based on range of dataset's type? callbacks may need tweaking for floating (new > image... > 32-bit)
  * @todo How to display resulting meshes? (Kyle's 3D Viewer branch?)
+ * @todo Resampling option as in BoneJ1
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BoneJ>Volume Fraction")
 public class ThresholdVolumeFractionWrapper extends ContextCommand {

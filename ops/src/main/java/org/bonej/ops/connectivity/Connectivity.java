@@ -8,6 +8,7 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.view.Views;
+import org.bonej.utilities.CalibratedAxisUtil;
 import org.scijava.plugin.Plugin;
 
 import java.util.Arrays;
@@ -16,7 +17,7 @@ import java.util.Arrays;
  * An Op which determines the number of connected structures in an ImgPlus image
  * by calculating the Euler characteristics of its elements.
  * The euler characteristic of an element is determined from its special 8-neighborhood.
- * The euler characteristics of the elements are summed the get the characteristic of the whole particle.
+ * The euler characteristics of the elements are summed the get the characteristic of the whole image.
  *
  * The algorithms here are based on the following articles:
  * Toriwaki J, Yonekura T (2002) Euler Number and Connectivity Indexes of a Three Dimensional Digital Picture.
@@ -176,26 +177,25 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
 
     @Override
     public Characteristics compute1(final ImgPlus<BitType> imgPlus) {
-        /** Euler characteristic of the sample as though floating in space (χ). */
         final double eulerCharacteristic = calculateEulerCharacteristic(imgPlus);
-
         final ConnectivityAccess connectivityAccess = new ConnectivityAccess(imgPlus);
-
-        /** Δ(χ): the sample's contribution to the Euler characteristic of the structure to which it was connected.
-         * Calculated by counting the intersections of elements, and the edges of the imgPlus. */
         final double deltaChi = calculateDeltaChi(eulerCharacteristic, connectivityAccess);
-
         /** The connectivity of the sample = 1 - Δ(χ) */
         final double connectivity = 1 - deltaChi;
-
-        /** The connectivity density of the sample = connectivity / calibratedIntervalVolume */
-        final double connectivityDensity = calculateConnectivityDensity(connectivity, connectivityAccess);
+        final double connectivityDensity = calculateConnectivityDensity(connectivity, imgPlus);
 
         return new Characteristics(eulerCharacteristic, deltaChi, connectivity, connectivityDensity);
     }
 
-    /** @todo Create just one final Octant */
-    private double calculateEulerCharacteristic(final ImgPlus<BitType> imgPlus) {
+    @Override
+    public boolean conforms() {
+        return in().numDimensions() == 3;
+    }
+
+    //region -- Helper methods --
+
+    /** Calculates the Euler characteristic of the object in the image as though floating in space (χ). */
+    private static double calculateEulerCharacteristic(final ImgPlus<BitType> imgPlus) {
         final int[] eulerSums = new int[(int) imgPlus.dimension(W_INDEX)];
         final Cursor<BitType> cursor = imgPlus.localizingCursor();
         final Octant octant = new Octant(imgPlus);
@@ -211,7 +211,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return Arrays.stream(eulerSums).sum() / 8.0;
     }
 
-    private int getDeltaEuler(final Octant octant) {
+    private static int getDeltaEuler(final Octant octant) {
         if (octant.isNeighborhoodEmpty()) {
             return 0;
         }
@@ -257,12 +257,21 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return EULER_LUT[index];
     }
 
-    private double calculateDeltaChi(final double eulerCharacteristic, final ConnectivityAccess connectivityAccess) {
+    /**
+     * Calculates Δ(χ): the sample's contribution to the Euler characteristic of the structure to which it's connected.
+     * Calculated by counting the intersections of foreground elements, and the edges of the imgPlus.
+     */
+    private static double calculateDeltaChi(final double eulerCharacteristic,
+                                            final ConnectivityAccess connectivityAccess) {
         final double edgeCorrection = calculateEdgeCorrection(connectivityAccess);
         return eulerCharacteristic - edgeCorrection;
     }
 
-    private double calculateEdgeCorrection(final ConnectivityAccess connectivityAccess) {
+    /**
+     * Calculate a correction value to convert the Euler number of a stack to
+     * the stack's contribution to the Euler number of whatever it is cut from.
+     */
+    private static double calculateEdgeCorrection(final ConnectivityAccess connectivityAccess) {
         final long chiZero = countBorderCornerForegroundElements(connectivityAccess);
         final long e = countBorderEdgeForegroundElements(connectivityAccess) + 3 * chiZero;
         final long c = countBorderFaceForegroundElements(connectivityAccess) + 2 * e - 3 * chiZero;
@@ -280,9 +289,11 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     /**
+     * "Count the number of intersections between voxel edges and stack faces."
+     *
      * @implNote Blindly copying legacy code because I don't know what's happening here
      */
-    private long getFaceEdges(final ConnectivityAccess connectivityAccess) {
+    private static long getFaceEdges(final ConnectivityAccess connectivityAccess) {
         long intersections = 0;
 
         // uv-plane faces
@@ -372,7 +383,11 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return intersections;
     }
 
-    private long countStackFaceVertexIntersections(final ConnectivityAccess connectivityAccess) {
+    /**
+     * Count the number of intersections between foreground voxel vertices
+     * and the border faces of the interval
+     */
+    private static long countStackFaceVertexIntersections(final ConnectivityAccess connectivityAccess) {
         long intersections = 0;
 
         // uv-plane faces
@@ -414,6 +429,15 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return intersections;
     }
 
+    /**
+     * Check if any of the elements in the given 4-neighborhood are foreground
+     *
+     * @param access A zero extended RandomAccess
+     * @param pos0   The starting position of the neighborhood in the first dimension
+     * @param pos1   The starting position of the neighborhood in the second dimension
+     * @param dim0   The first dimension of the neighborhood
+     * @param dim1   The second dimension of the neighborhood
+     */
     private static boolean isNeighborhoodForeground(final RandomAccess<BitType> access, final long pos0,
                                                     final long pos1, final int dim0, final int dim1) {
         access.setPosition(pos0, dim0);
@@ -435,7 +459,11 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return a || b || c || d;
     }
 
-    private long countStackEdgeVertexIntersections(final ConnectivityAccess connectivityAccess) {
+    /**
+     * Count the number of intersections between foreground voxel vertices
+     * and the border edges of the interval
+     */
+    private static long countStackEdgeVertexIntersections(final ConnectivityAccess connectivityAccess) {
         long intersections = 0;
 
         // uv-plane edges
@@ -480,7 +508,14 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return intersections;
     }
 
-    private boolean isNeighborhoodForeground(final RandomAccess<BitType> access, final long pos, final int dim) {
+    /**
+     * Check if any of the elements at the given 2-neighborhood are foreground
+     *
+     * @param access A zero extended RandomAccess
+     * @param pos    The starting position of the neighborhood in the given dimension
+     * @param dim    The dimension of the neighborhood
+     */
+    private static boolean isNeighborhoodForeground(final RandomAccess<BitType> access, final long pos, final int dim) {
         access.setPosition(pos, dim);
         boolean a = access.get().get();
 
@@ -491,7 +526,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     /** Count the number of foreground elements on the faces that touch the borders of the Img interval */
-    private long countBorderFaceForegroundElements(final ConnectivityAccess connectivityAccess) {
+    private static long countBorderFaceForegroundElements(final ConnectivityAccess connectivityAccess) {
         long foregroundElements = 0;
 
         // front and back (uv-plane) faces
@@ -534,7 +569,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     /** Count the number of foreground elements in the edges that line the borders of the Img interval */
-    private long countBorderEdgeForegroundElements(final ConnectivityAccess connectivityAccess) {
+    private static long countBorderEdgeForegroundElements(final ConnectivityAccess connectivityAccess) {
         long foregroundElements = 0;
 
         // left to right (u-axis) edges
@@ -577,7 +612,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     /** Count the number of foreground elements in the bordering corners of the Img interval */
-    private long countBorderCornerForegroundElements(final ConnectivityAccess connectivityAccess) {
+    private static long countBorderCornerForegroundElements(final ConnectivityAccess connectivityAccess) {
         long foregroundElements = 0;
 
         for (long w = 0; w < connectivityAccess.wSize; w += connectivityAccess.wInc) {
@@ -594,23 +629,15 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         return foregroundElements;
     }
 
-    private double calculateConnectivityDensity(final double connectivity,
-                                                final ConnectivityAccess connectivityAccess) {
-        final double elementVolume =
-                connectivityAccess.uElementSize * connectivityAccess.vElementSize * connectivityAccess.wElementSize;
-        final double imgVolume = connectivityAccess.uSize * connectivityAccess.vSize * connectivityAccess.wSize;
-        final double calibratedImgVolume = imgVolume * elementVolume;
-
+    /** Calculates the connectivity density of the sample by dividing connectivity by the calibrated size of the interval */
+    private static double calculateConnectivityDensity(final double connectivity, final ImgPlus<BitType> imgPlus) {
+        final double calibratedImgVolume = CalibratedAxisUtil.calibratedSpaceSize(imgPlus);
         return connectivity / calibratedImgVolume;
     }
-
-    @Override
-    public boolean conforms() {
-        return in().numDimensions() == 3;
-    }
+    //endregion
 
     //region -- Helper classes --
-    public final class Characteristics {
+    public static final class Characteristics {
         public double eulerCharacteristic;
         public double deltaChi;
         public double connectivity;
@@ -626,12 +653,13 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
     }
 
     /**
-     * A Convenience class for traversing the plugin's input ImgPlus
+     * A Convenience class used to traverse the plugin's input ImgPlus.
+     * If these fields were part of the parent class,
+     * it wouldn't be threadsafe
      *
      * @implNote element sizes are accurate only if axes are linear
-     * @todo Set access to Views.extendZero(interval).randomAccess()?
      */
-    private final class ConnectivityAccess {
+    private static final class ConnectivityAccess {
         public final RandomAccess<BitType> access;
         /** The calibrated size of an element in the 1st dimension */
         public final double uElementSize;
@@ -647,11 +675,11 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
         /** Number of elements (voxels) in the 3rd dimension */
         public final long wSize;
 
-        /** Increment value to jump to the end of 1st dimension */
+        /** Increment value to jump to the end of 1st dimension in a loop */
         public final long uInc;
-        /** Increment value to jump to the end of 2nd dimension */
+        /** Increment value to jump to the end of 2nd dimension in a loop */
         public final long vInc;
-        /** Increment value to jump to the end of 3rd dimension */
+        /** Increment value to jump to the end of 3rd dimension in a loop */
         public final long wInc;
 
         public ConnectivityAccess(final ImgPlus<BitType> img) {

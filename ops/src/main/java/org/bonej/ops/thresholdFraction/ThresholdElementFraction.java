@@ -8,11 +8,11 @@ import org.scijava.plugin.Plugin;
 import java.util.stream.StreamSupport;
 
 /**
- * Counts the number of foreground elements in the interval that are within the given thresholds
+ * Counts the fraction of foreground elements in the interval that are within the given thresholds
  *
  * @author Richard Domander
  * @apiNote The plugin assumes that foregroundCutOff.compareTo(minThreshold) <= 0,
- * and minThreshold.compareTo(maxThreshold) <= 0
+ *          and minThreshold.compareTo(maxThreshold) <= 0
  * @todo How to implement the limit calculations to ROIs option from BoneJ1?
  * @todo How to apply calculations only to areas defined by masks (irregular rois)?
  * @todo How to display Results?
@@ -38,8 +38,6 @@ public class ThresholdElementFraction<S, T extends Comparable<S>> extends
     /**
      * A helper class for passing the input settings of the Op type safely,
      * without having to memorize array indices etc.
-     *
-     * @todo How are these kinds @Parameters stored persistently?
      */
     public static final class Settings<S> {
         /** Minimum value for elements within threshold */

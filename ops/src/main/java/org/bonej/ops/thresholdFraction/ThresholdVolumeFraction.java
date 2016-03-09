@@ -26,6 +26,20 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 public class ThresholdVolumeFraction<T extends NativeType<T> & RealType<T>> extends
         AbstractBinaryFunctionOp<IterableInterval<T>, ThresholdVolumeFraction.Settings, ThresholdVolumeFraction.Results>
         implements Contingent {
+    //region -- Utility methods --
+    public static void main(String... args) {
+        final ImageJ ij = new ImageJ();
+        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L, 0L);
+        final Settings settings = new Settings(1.0, 1.0, 1.0);
+
+        final Results results = (Results) ij.op().run(ThresholdVolumeFraction.class, cuboid, settings);
+        System.out.println("Thresholded surface volume " + results.thresholdMeshVolume);
+        System.out.println("Foreground surface volume " + results.foregroundMeshVolume);
+        System.out.println("Volume ratio " + results.volumeRatio);
+
+        ij.context().dispose();
+    }
+
     /**
      * @throws NotImplementedException if interval is a Dataset
      */
@@ -75,27 +89,11 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & RealType<T>> exte
     public boolean conforms() {
         return in1().numDimensions() == 3;
     }
-
-    //region -- Utility methods --
-    public static void main(String... args) {
-        final ImageJ ij = new ImageJ();
-        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L, 0L);
-        final Settings settings = new Settings(1.0, 1.0, 1.0);
-
-        final Results results = (Results) ij.op().run(ThresholdVolumeFraction.class, cuboid, settings);
-        System.out.println("Thresholded surface volume " + results.thresholdMeshVolume);
-        System.out.println("Foreground surface volume " + results.foregroundMeshVolume);
-        System.out.println("Volume ratio " + results.volumeRatio);
-
-        ij.context().dispose();
-    }
     //endregion
 
-    /**
-     * @todo    Make generic with type T, but with double constructor that has a T param, that
-     *          can be used to copy / create elements of T?
-     */
     //region -- Helper classes --
+
+    /** A helper class for plugin inputs so that it can be written as a binaryOp */
     public static final class Settings {
         /** Minimum value for elements within threshold */
         public final double minThreshold;
@@ -111,6 +109,7 @@ public class ThresholdVolumeFraction<T extends NativeType<T> & RealType<T>> exte
         }
     }
 
+    /** A helper class to pass outputs type safely */
     public static final class Results {
         /** A mesh created from the elements within the thresholds */
         public final Mesh thresholdMesh;
