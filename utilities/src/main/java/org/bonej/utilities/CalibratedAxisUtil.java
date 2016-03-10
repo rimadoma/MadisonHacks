@@ -4,11 +4,10 @@ import com.google.common.base.Strings;
 import net.imagej.axis.CalibratedAxis;
 import net.imagej.space.AnnotatedSpace;
 import net.imglib2.Dimensions;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.logic.BitType;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -21,29 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public final class CalibratedAxisUtil {
     private CalibratedAxisUtil() {} // There's no reason to create an instance of this class
-
-    /**
-     * Counts the number of spatial dimensions in the given space
-     *
-     * @throws NullPointerException if space == null
-     */
-    public static <T extends AnnotatedSpace<CalibratedAxis>> long countSpatialDimensions(final T space)
-            throws NullPointerException {
-        checkNotNull(space, "Cannot determine dimensions of a null space");
-
-        final Stream<CalibratedAxis> axes = getAxisStream(space);
-        return axes.filter(a -> a.type().isSpatial()).count();
-    }
-
-    /**
-     * Returns the CalibratedAxis in the given space as a Stream,
-     * or an empty Stream if the space is null
-     */
-    public static <T extends AnnotatedSpace<CalibratedAxis>> Stream<CalibratedAxis> getAxisStream(
-            @Nullable final T space) {
-        final Optional<CalibratedAxis[]> axes = allocateAndGetAxis(space);
-        return axes.isPresent() ? Stream.of(axes.get()) : Stream.empty();
-    }
 
     /**
      * Allocates and returns the CalibratedAxis in the given space as an Optional of array,
@@ -63,19 +39,6 @@ public final class CalibratedAxisUtil {
     }
 
     /**
-     * Returns true if the given space has dimensions that are not spatial, e.g. time or channel
-     *
-     * @throws NullPointerException if space == null
-     */
-    public static <T extends AnnotatedSpace<CalibratedAxis>> boolean hasNonSpatialDimensions(final T space)
-            throws NullPointerException {
-        checkNotNull(space, "Cannot determine dimensions of a null space");
-
-        final Stream<CalibratedAxis> axes = getAxisStream(space);
-        return axes.anyMatch(a -> !a.type().isSpatial());
-    }
-
-    /**
      * Returns the size of a single calibrated element in the given space,
      * e.g. the volume of an element in a 3D space
      *
@@ -88,6 +51,7 @@ public final class CalibratedAxisUtil {
     public static <T extends AnnotatedSpace<CalibratedAxis> & Dimensions> double calibratedElementSize(final T space)
             throws NullPointerException {
         checkNotNull(space, "Cannot determine element size in a null space");
+
 
         final int numDimensions = space.numDimensions();
         double calibratedElementSize = 1.0;
@@ -133,17 +97,53 @@ public final class CalibratedAxisUtil {
     }
 
     /**
+     * Counts the number of spatial dimensions in the given space
+     *
+     * @throws NullPointerException if space == null
+     */
+    public static <T extends AnnotatedSpace<CalibratedAxis>> long countSpatialDimensions(final T space)
+            throws NullPointerException {
+        checkNotNull(space, "Cannot determine dimensions of a null space");
+
+        final Stream<CalibratedAxis> axes = getAxisStream(space);
+        return axes.filter(a -> a.type().isSpatial()).count();
+    }
+
+    /**
+     * Returns the CalibratedAxis in the given space as a Stream,
+     * or an empty Stream if the space is null
+     */
+    public static <T extends AnnotatedSpace<CalibratedAxis>> Stream<CalibratedAxis> getAxisStream(
+            @Nullable final T space) {
+        final Optional<CalibratedAxis[]> axes = allocateAndGetAxis(space);
+        return axes.isPresent() ? Stream.of(axes.get()) : Stream.empty();
+    }
+
+    /**
+     * Returns true if the given space has dimensions that are not spatial, e.g. time or channel
+     *
+     * @throws NullPointerException if space == null
+     */
+    public static <T extends AnnotatedSpace<CalibratedAxis>> boolean hasNonSpatialDimensions(final T space)
+            throws NullPointerException {
+        checkNotNull(space, "Cannot determine dimensions of a null space");
+
+        final Stream<CalibratedAxis> axes = getAxisStream(space);
+        return axes.anyMatch(a -> !a.type().isSpatial());
+    }
+
+    /**
      * Returns the unit of the calibration used in the given space
      *
-     * @return  The Optional is empty if the space is null.
-     *          The Optional is empty if the units of the axes in the space don't match,
-     *          or any of them is null or empty
-     * @todo make spatialUnitOfSpace etc
+     * @return The Optional is empty if the space is null.
+     * The Optional is empty if the units of the axes in the space don't match,
+     * or any of them is null or empty
      */
-    public static <T extends AnnotatedSpace<CalibratedAxis>> Optional<String> unitOfSpace(@Nullable final T space) {
+    public static <T extends AnnotatedSpace<CalibratedAxis>> Optional<String> spatialUnitOfSpace(
+            @Nullable final T space) {
         final Optional<CalibratedAxis[]> axes = allocateAndGetAxis(space);
 
-        if (!isAxisSameUnit(axes)) {
+        if (!spatialAxisUnitsMatch(axes)) {
             return Optional.empty();
         }
 
@@ -151,19 +151,32 @@ public final class CalibratedAxisUtil {
         return Optional.of(unit);
     }
 
-    private static boolean isAxisSameUnit(final Optional<CalibratedAxis[]> axes) {
+    /** Checks that all the spatial axis in the given Optional array have the same unit */
+    private static boolean spatialAxisUnitsMatch(final Optional<CalibratedAxis[]> axes) {
         if (!axes.isPresent()) {
             return false;
         }
 
-        final CalibratedAxis[] axesArray = axes.get();
+        final Iterator<String> units = Arrays.stream(axes.get()).filter(a -> a != null && a.type().isSpatial())
+                .map(CalibratedAxis::unit).distinct().iterator();
 
-        boolean noUnitAxis = Arrays.stream(axesArray).anyMatch(a -> Strings.isNullOrEmpty(a.unit()));
-        if (noUnitAxis) {
+        if (!units.hasNext()) {
+            // No spatial axis
             return false;
         }
 
-        final String firstUnit = axesArray[0].unit();
-        return Arrays.stream(axesArray).allMatch(a -> a.unit().equals(firstUnit));
+        final String firstUnit = units.next();
+        if (Strings.isNullOrEmpty(firstUnit)) {
+            return false;
+        }
+
+        while (units.hasNext()) {
+            String unit = units.next();
+            if (Strings.isNullOrEmpty(unit) || !firstUnit.equals(unit)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

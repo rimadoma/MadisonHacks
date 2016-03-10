@@ -110,7 +110,7 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
         final double elementVolume = CalibratedAxisUtil.calibratedElementSize(activeImage);
         final double sampleVolume = results.foregroundMeshVolume * elementVolume;
         final double boneVolume = results.thresholdMeshVolume * elementVolume;
-        final Optional<String> unit = CalibratedAxisUtil.unitOfSpace(activeImage);
+        final Optional<String> unit = CalibratedAxisUtil.spatialUnitOfSpace(activeImage);
         final String unitSuffix;
 
         if (!unit.isPresent()) {

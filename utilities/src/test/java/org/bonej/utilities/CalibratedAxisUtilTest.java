@@ -116,7 +116,7 @@ public class CalibratedAxisUtilTest {
         final Img<BitType> img = imgCreator.compute1(dimensions);
         final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
 
-        Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+        Optional<String> result = CalibratedAxisUtil.spatialUnitOfSpace(imgPlus);
 
         assertTrue("Unit String should be present", result.isPresent());
         assertEquals("Unit String should be " + unit, unit, result.get());
@@ -130,14 +130,14 @@ public class CalibratedAxisUtilTest {
         final Img<BitType> img = imgCreator.compute1(dimensions);
         final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
 
-        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+        final Optional<String> result = CalibratedAxisUtil.spatialUnitOfSpace(imgPlus);
 
         assertFalse("Optional should be empty", result.isPresent());
     }
 
     @Test
     public void testUnitOfSpaceReturnsEmptyIfSpaceIsNull() throws AssertionError {
-        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(null);
+        final Optional<String> result = CalibratedAxisUtil.spatialUnitOfSpace(null);
 
         assertFalse("Optional should be empty", result.isPresent());
     }
@@ -150,7 +150,7 @@ public class CalibratedAxisUtilTest {
         final Img<BitType> img = imgCreator.compute1(dimensions);
         final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
 
-        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+        final Optional<String> result = CalibratedAxisUtil.spatialUnitOfSpace(imgPlus);
 
         assertFalse("Optional should be empty", result.isPresent());
     }
@@ -162,7 +162,7 @@ public class CalibratedAxisUtilTest {
         final Img<BitType> img = imgCreator.compute1(dimensions);
         final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis);
 
-        final Optional<String> result = CalibratedAxisUtil.unitOfSpace(imgPlus);
+        final Optional<String> result = CalibratedAxisUtil.spatialUnitOfSpace(imgPlus);
 
         assertFalse("Optional should be empty", result.isPresent());
     }
