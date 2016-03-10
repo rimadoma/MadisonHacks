@@ -13,29 +13,18 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * @author Richard Domander
  * @author Mark Hiner
- * @todo Unit tests
  */
 public final class Octant {
     private final boolean[] neighborhood = new boolean[8];
-    private long foregroundNeighbors;
+    private int foregroundNeighbors;
     private RandomAccess<BitType> access;
 
     public Octant(final RandomAccessibleInterval<BitType> interval) {
         setInterval(interval);
     }
 
-    /**
-     * Sets the interval where the neighborhood is located
-     *
-     * @throws NullPointerException     if interval == null
-     * @throws IllegalArgumentException if interval has less than three dimensions
-     */
-    public void setInterval(RandomAccessibleInterval<BitType> interval)
-            throws NullPointerException, IllegalArgumentException {
-        checkNotNull(interval, "Interval cannot be set null");
-        checkArgument(interval.numDimensions() >= 3, "Interval must have at least three dimensions");
-
-        access = Views.extendZero(interval).randomAccess();
+    public int getNeighborCount() {
+        return foregroundNeighbors;
     }
 
     /**
@@ -51,6 +40,21 @@ public final class Octant {
     /** True if none of the elements in the neighborhood are foreground (true) */
     public boolean isNeighborhoodEmpty() {
         return foregroundNeighbors == 0;
+    }
+
+    /**
+     * Sets the interval where the neighborhood is located
+     *
+     * @throws NullPointerException     if interval == null
+     * @throws IllegalArgumentException if interval has less than three dimensions
+     * @implNote Copies reference
+     */
+    public void setInterval(RandomAccessibleInterval<BitType> interval)
+            throws NullPointerException, IllegalArgumentException {
+        checkNotNull(interval, "Interval cannot be set null");
+        checkArgument(interval.numDimensions() >= 3, "Interval must have at least three dimensions");
+
+        access = Views.extendZero(interval).randomAccess();
     }
 
     /** Set the starting coordinates of the neighborhood in the interval */
