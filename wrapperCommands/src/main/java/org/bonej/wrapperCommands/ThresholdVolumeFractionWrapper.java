@@ -118,7 +118,8 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
                     MessageType.WARNING_MESSAGE);
             unitSuffix = "";
         } else {
-            unitSuffix = "(" + unit.get() + ")";
+            char thirdPower = '\u00B3';
+            unitSuffix = "(" + unit.get() + thirdPower + ")";
         }
 
         resultInserter.setMeasurementInFirstFreeRow(label, "Bone volume " + unitSuffix, boneVolume);
