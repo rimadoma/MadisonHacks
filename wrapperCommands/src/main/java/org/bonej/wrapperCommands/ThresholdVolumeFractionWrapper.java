@@ -19,7 +19,6 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -78,13 +77,6 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
     @Parameter
     private UIService uiService;
 
-    //region --Utility methods--
-    public static void main(String... args) {
-        final ImageJ ij = net.imagej.Main.launch(args);
-        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L);
-        ij.ui().show(cuboid);
-    }
-
     @Override
     public void run() {
         final ThresholdVolumeFraction.Settings settings =
@@ -99,53 +91,16 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
             showSurfaces(results);
         }
     }
+
+    //region --Utility methods--
+    public static void main(String... args) {
+        final ImageJ ij = net.imagej.Main.launch(args);
+        final Object cuboid = ij.op().run(CuboidCreator.class, null, 10L, 10L, 10L);
+        ij.ui().show(cuboid);
+    }
     //endregion
 
     //region --Helper methods--
-
-    /** Display volume data in the IJ results table */
-    private void displayResults(final ThresholdVolumeFraction.Results results) {
-        final ResultsInserter resultInserter = new ResultsInserter();
-        final String label = activeImage.getName();
-        final double elementVolume = CalibratedAxisUtil.calibratedElementSize(activeImage);
-        final double sampleVolume = results.foregroundMeshVolume * elementVolume;
-        final double boneVolume = results.thresholdMeshVolume * elementVolume;
-        final Optional<String> unit = CalibratedAxisUtil.spatialUnitOfSpace(activeImage);
-        final String unitSuffix;
-
-        if (!unit.isPresent()) {
-            uiService.showDialog("Could not determine the unit of calibration - showing plain values",
-                    MessageType.WARNING_MESSAGE);
-            unitSuffix = "";
-        } else {
-            char thirdPower = '\u00B3';
-            unitSuffix = "(" + unit.get() + thirdPower + ")";
-        }
-
-        resultInserter.setMeasurementInFirstFreeRow(label, "Bone volume " + unitSuffix, boneVolume);
-        resultInserter.setMeasurementInFirstFreeRow(label, "Sample volume " + unitSuffix, sampleVolume);
-        resultInserter.setMeasurementInFirstFreeRow(label, "Volume ratio", results.volumeRatio);
-        resultInserter.showTable();
-    }
-
-    /** Visualize the 3D surfaces produced */
-    private void showSurfaces(final ThresholdVolumeFraction.Results results) {
-        throw new NotImplementedException();
-    }
-
-    @SuppressWarnings("unused")
-    private void enforceThresholds() {
-        if (maxThreshold > thresholdBoundary) {
-            maxThreshold = thresholdBoundary;
-        }
-
-        if (minThreshold > maxThreshold) {
-            minThreshold = maxThreshold;
-        }
-        if (foregroundCutOff > minThreshold) {
-            foregroundCutOff = minThreshold;
-        }
-    }
 
     @SuppressWarnings("unused")
     private void checkImage() {
@@ -166,6 +121,43 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
         }
 
         initThresholds();
+    }
+
+    /** Display volume data in the IJ results table */
+    private void displayResults(final ThresholdVolumeFraction.Results results) {
+        final ResultsInserter resultInserter = new ResultsInserter();
+        final String label = activeImage.getName();
+        final double elementVolume = CalibratedAxisUtil.calibratedElementSize(activeImage);
+        final double sampleVolume = results.foregroundMeshVolume * elementVolume;
+        final double boneVolume = results.thresholdMeshVolume * elementVolume;
+        String unit = CalibratedAxisUtil.getSpatialUnitOfSpace(activeImage).orElse("");
+
+        if (unit.isEmpty()) {
+            uiService.showDialog("Could not determine the unit of calibration - showing plain values",
+                    MessageType.WARNING_MESSAGE);
+        } else {
+            char thirdPower = '\u00B3';
+            unit = "(" + unit + thirdPower + ")";
+        }
+
+        resultInserter.setMeasurementInFirstFreeRow(label, "Bone volume " + unit, boneVolume);
+        resultInserter.setMeasurementInFirstFreeRow(label, "Sample volume " + unit, sampleVolume);
+        resultInserter.setMeasurementInFirstFreeRow(label, "Volume ratio", results.volumeRatio);
+        resultInserter.showTable();
+    }
+
+    @SuppressWarnings("unused")
+    private void enforceThresholds() {
+        if (maxThreshold > thresholdBoundary) {
+            maxThreshold = thresholdBoundary;
+        }
+
+        if (minThreshold > maxThreshold) {
+            minThreshold = maxThreshold;
+        }
+        if (foregroundCutOff > minThreshold) {
+            foregroundCutOff = minThreshold;
+        }
     }
 
     private void initThresholds() {
@@ -191,6 +183,11 @@ public class ThresholdVolumeFractionWrapper extends ContextCommand {
         } catch (final IOException e) {
             uiService.showDialog("An error occurred while trying to open the help page");
         }
+    }
+
+    /** Visualize the 3D surfaces produced */
+    private void showSurfaces(final ThresholdVolumeFraction.Results results) {
+        throw new NotImplementedException();
     }
     //endregion
 }
