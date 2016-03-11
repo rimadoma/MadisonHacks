@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * @author Richard Domander
  *
  * @todo add behaviour for headless mode: ResultsTable.saveAs...?
- * @todo add unit tests
  */
 public class ResultsInserter {
     private static final String DEFAULT_RESULTS_TABLE_TITLE = "Results";

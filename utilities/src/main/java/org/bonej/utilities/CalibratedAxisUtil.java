@@ -24,17 +24,21 @@ public final class CalibratedAxisUtil {
     private CalibratedAxisUtil() {} // There's no reason to create an instance of this class
 
     /**
-     * Returns the size of a single calibrated element in the given space,
+     * Returns the size of a single calibrated spatial element in the given space,
      * e.g. the volume of an element in a 3D space
      *
+     * @return Calibrated size of a spatial element, or 1.0 if calibration cannot be determined
+     * (@see spatialAxisUnitsMatch)
      * @throws NullPointerException if space == null
      * @implNote Only works with linear axes
-     * @implNote Ignores non-spatial axes
-     * @todo Check that units match
      */
-    public static <T extends AnnotatedSpace<CalibratedAxis> & Dimensions> double calibratedElementSize(final T space)
-            throws NullPointerException {
+    public static <T extends AnnotatedSpace<CalibratedAxis> & Dimensions> double calibratedSpatialElementSize(
+            final T space) throws NullPointerException {
         checkNotNull(space, "Cannot determine element size in a null space");
+
+        if (!spatialAxisUnitsMatch(space)) {
+            return 1.0;
+        }
 
         final int numDimensions = space.numDimensions();
         double calibratedElementSize = 1.0;
@@ -54,23 +58,29 @@ public final class CalibratedAxisUtil {
     }
 
     /**
-     * Returns the calibrated size of the given space
+     * Returns the calibrated spatial size of the given space
      *
+     * Size is calculated by multiplying the sizes of each spatial dimension,
+     * and then multiplying the result by @see calibratedSpatialElementSize
+     * If calibration cannot be determined, returns the size of the spatial space
+     *
+     * @throws NullPointerException if space == null
      * @implNote Only works with linear axes
-     * @todo Check that units match
-     * @todo Ignore non spatial axes
-     * @todo checkNotNull
      * @todo unit tests
-     * @todo share code with calibratedElementSize
-     * @todo dimensionStream
      */
-    public static <T extends AnnotatedSpace<CalibratedAxis> & Dimensions> double calibratedSpaceSize(final T space) {
-        double elementSize = calibratedElementSize(space);
+    public static <T extends AnnotatedSpace<CalibratedAxis> & Dimensions> double calibratedSpatialSpaceSize(
+            final T space) throws NullPointerException {
+        double elementSize = calibratedSpatialElementSize(space);
 
         final int numDimensions = space.numDimensions();
         double spaceSize = 1.0;
 
         for (int d = 0; d < numDimensions; d++) {
+            final CalibratedAxis axis = space.axis(d);
+            if (!axis.type().isSpatial()) {
+                continue;
+            }
+
             final long dimensionSize = space.dimension(d);
             spaceSize = spaceSize * dimensionSize;
         }
@@ -90,6 +100,7 @@ public final class CalibratedAxisUtil {
         return generateAxisStream(space).filter(a -> a.type().isSpatial()).count();
     }
 
+    /** Returns a Stream of the CalibratedAxis objects in the given space */
     public static Stream<CalibratedAxis> generateAxisStream(AnnotatedSpace<CalibratedAxis> space) {
         return StreamSupport.stream(new AxisSequence(space).spliterator(), false);
     }
@@ -124,10 +135,12 @@ public final class CalibratedAxisUtil {
         return generateAxisStream(space).anyMatch(a -> a != null && !a.type().isSpatial());
     }
 
+    /** Returns a Stream of the spatial axes in the given space */
     private static Stream<CalibratedAxis> generateSpatialAxisStream(final AnnotatedSpace<CalibratedAxis> space) {
         return generateAxisStream(space).filter(a -> a != null && a.type().isSpatial());
     }
 
+    /** Returns a Stream of the units used by the spatial axes in the given space */
     private static Stream<String> generateSpatialUnitStream(final AnnotatedSpace<CalibratedAxis> space) {
         return generateSpatialAxisStream(space).map(CalibratedAxis::unit);
     }

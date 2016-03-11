@@ -631,7 +631,7 @@ public class Connectivity extends AbstractUnaryFunctionOp<ImgPlus<BitType>, Conn
 
     /** Calculates the connectivity density of the sample by dividing connectivity by the calibrated size of the interval */
     private static double calculateConnectivityDensity(final double connectivity, final ImgPlus<BitType> imgPlus) {
-        final double calibratedImgVolume = CalibratedAxisUtil.calibratedSpaceSize(imgPlus);
+        final double calibratedImgVolume = CalibratedAxisUtil.calibratedSpatialSpaceSize(imgPlus);
         return connectivity / calibratedImgVolume;
     }
     //endregion

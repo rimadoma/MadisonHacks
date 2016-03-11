@@ -35,7 +35,7 @@ public class CalibratedAxisUtilTest {
     private static ImgPlus<BitType> testImgPlus3D;
 
     @Test
-    public void testCalibratedElementSize() throws AssertionError {
+    public void testCalibratedSpatialElementSize() throws AssertionError {
         final double scale = 0.5;
         final double expectedSize = scale * scale;
         final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, scale);
@@ -45,9 +45,58 @@ public class CalibratedAxisUtilTest {
         final Img<BitType> img = imgCreator.compute1(dimensions);
         final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis, timeAxis);
 
-        final double result = CalibratedAxisUtil.calibratedElementSize(imgPlus);
+        final double result = CalibratedAxisUtil.calibratedSpatialElementSize(imgPlus);
 
         assertEquals("Incorrect calibrated element size", expectedSize, result, 1e-12);
+    }
+
+    @Test
+    public void testCalibratedSpatialElementSizeReturnsOneWithMismatchingUnits() throws AssertionError {
+        final double expectedSize = 1.0;
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, "mm");
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y, "cm");
+        final FinalDimensions dimensions = new FinalDimensions(10, 10);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
+
+        final double result = CalibratedAxisUtil.calibratedSpatialElementSize(imgPlus);
+
+        assertEquals("Spatial element size should be " + expectedSize, expectedSize, result, 1e-12);
+    }
+
+    @Test
+    public void testCalibratedSpatialElementSizeReturnsOneWithUncalibratedAxis() throws AssertionError {
+        final double expectedSize = 1.0;
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X, "mm");
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y, null);
+        final FinalDimensions dimensions = new FinalDimensions(10, 10);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis);
+
+        final double result = CalibratedAxisUtil.calibratedSpatialElementSize(imgPlus);
+
+        assertEquals("Spatial element size should be " + expectedSize, expectedSize, result, 1e-12);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testCalibratedSpatialElementSizeThrowsNullPointerExceptionIfSpaceIsNull() throws AssertionError {
+        CalibratedAxisUtil.calibratedSpatialElementSize(null);
+    }
+
+    @Test
+    public void testCalibratedSpatialSpaceSize() throws AssertionError {
+        final int dimensionSize = 10;
+        final int expectedSize = dimensionSize * dimensionSize;
+        final DefaultLinearAxis xAxis = new DefaultLinearAxis(Axes.X);
+        final DefaultLinearAxis yAxis = new DefaultLinearAxis(Axes.Y);
+        final DefaultLinearAxis timeAxis = new DefaultLinearAxis(Axes.TIME);
+        final FinalDimensions dimensions = new FinalDimensions(dimensionSize, dimensionSize, dimensionSize);
+        final Img<BitType> img = imgCreator.compute1(dimensions);
+        final ImgPlus<BitType> imgPlus = new ImgPlus<>(img, "", xAxis, yAxis, timeAxis);
+
+        final double result = CalibratedAxisUtil.calibratedSpatialSpaceSize(imgPlus);
+
+        assertEquals("Incorrect calibrated space size", expectedSize, result, 1e-12);
     }
 
     @Test
