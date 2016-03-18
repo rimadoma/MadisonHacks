@@ -2,25 +2,26 @@ package org.bonej.ops.triplePointAngles;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import net.imagej.ImageJ;
 import net.imagej.ops.Op;
 import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
-import net.imglib2.Localizable;
-import net.imglib2.Point;
+import net.imagej.ops.special.function.Functions;
+import net.imagej.ops.special.function.UnaryFunctionOp;
 import net.imglib2.RealLocalizable;
-import net.imglib2.roi.geometric.PointCollection;
 
+import org.bonej.ops.geom.CentroidVecMath3d;
 import org.scijava.plugin.Plugin;
+import org.scijava.vecmath.Tuple3d;
 import org.scijava.vecmath.Vector3d;
 
 import sc.fiji.analyzeSkeleton.AnalyzeSkeleton_;
 import sc.fiji.analyzeSkeleton.Edge;
 import sc.fiji.analyzeSkeleton.Graph;
 import sc.fiji.analyzeSkeleton.Vertex;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import com.google.common.collect.ImmutableList;
 
@@ -29,25 +30,26 @@ import ij.io.Opener;
 
 /**
  * @author Richard Domander
- * @todo Vertex-to-Vertex special case from BoneJ1
- * @todo is Vertex-to-Vertex the same as nthPoint == 0?
- * @todo Rewrite with Vector3D?
- * @todo prematch centroid op
- * @todo Write a Centroid Op for Vector3D?
  */
 @Plugin(type = Op.class)
 public class TriplePointAngles
 		extends
 			AbstractBinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePointAngles.TriplePoint>>> {
 	private static final int VERTEX_TO_VERTEX = -1;
+    private UnaryFunctionOp<List<Vector3d>, Tuple3d> centroidOp;
+
+    @Override
+    public void initialize() {
+        centroidOp = (UnaryFunctionOp) Functions.unary(ops(), CentroidVecMath3d.class, Tuple3d.class, List.class);
+    }
 
 	@Override
 	public ImmutableList<ImmutableList<TriplePoint>> compute2(final Graph[] graphs, final Integer nthPoint) {
-		final ArrayList<TriplePoint> triplePoints = new ArrayList<>();
-		final ArrayList<ImmutableList<TriplePoint>> skeletons = new ArrayList<>();
+		final List<TriplePoint> triplePoints = new ArrayList<>();
+		final List<ImmutableList<TriplePoint>> skeletons = new ArrayList<>();
 
 		for (int g = 0; g < graphs.length; g++) {
-			final ArrayList<Vertex> vertices = graphs[g].getVertices();
+			final List<Vertex> vertices = graphs[g].getVertices();
 			for (int v = 0; v < vertices.size(); v++) {
 				final Vertex vertex = vertices.get(v);
 
@@ -119,61 +121,68 @@ public class TriplePointAngles
 		return thetas;
 	}
 
+    /**
+     * Measure the angle between edge0, edge1 at vertex
+     * The measuring point is the opposing vertex at each edge
+     *
+     * @todo refactor to angle(vector c, vector 0, vector 1) where 0, 1 change based on nthPoint
+     */
     private double vertexToVertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1) {
-        final PointCollection vertexPoints = toImgLib2PointCollection(vertex.getPoints());
-        final PointCollection oppositePoints0 = toImgLib2PointCollection(edge0.getOppositeVertex(vertex).getPoints());
-        final PointCollection oppositePoints1 = toImgLib2PointCollection(edge1.getOppositeVertex(vertex).getPoints());
+        final List<Vector3d> vertexPoints = toVector3d(vertex.getPoints());
+        final List<Vector3d> oppositePoints0 = toVector3d(edge0.getOppositeVertex(vertex).getPoints());
+        final List<Vector3d> oppositePoints1 = toVector3d(edge1.getOppositeVertex(vertex).getPoints());
 
-        final RealLocalizable centroid = ops().geom().centroid(vertexPoints);
-        final RealLocalizable oppositeCentroid0 = ops().geom().centroid(oppositePoints0);
-        final RealLocalizable oppositeCentroid1 = ops().geom().centroid(oppositePoints1);
+        final Vector3d centroid = (Vector3d) centroidOp.compute1(vertexPoints);
+        final Vector3d oppositeCentroid0 = (Vector3d) centroidOp.compute1(oppositePoints0);
+        final Vector3d oppositeCentroid1 = (Vector3d) centroidOp.compute1(oppositePoints1);
 
         return joinedVectorAngle(oppositeCentroid0, oppositeCentroid1, centroid);
     }
 
-    private double vertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int nthPoint) {
-		final Point p0 = getNthPointOfEdge(vertex, edge0, nthPoint);
-		final Point p1 = getNthPointOfEdge(vertex, edge1, nthPoint);
+    private List<Vector3d> toVector3d(final List<sc.fiji.analyzeSkeleton.Point> points) {
+        return points.stream().map(this::toVector3d).collect(Collectors.toList());
+    }
 
-        final RealLocalizable vertexCentroid = ops().geom().centroid(toImgLib2PointCollection(vertex.getPoints()));
+    private Vector3d toVector3d(final sc.fiji.analyzeSkeleton.Point point) {
+        return new Vector3d(point.x, point.y, point.z);
+    }
+
+    /**
+     * Measure the angle between edges 0 & 1 at vertex
+     * The measuring point is the nth slab element of each edge
+     */
+    private double vertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int nthPoint) {
+		final Vector3d p0 = getNthPointOfEdge(vertex, edge0, nthPoint);
+		final Vector3d p1 = getNthPointOfEdge(vertex, edge1, nthPoint);
+        final Vector3d vertexCentroid = (Vector3d) centroidOp.compute1(toVector3d(vertex.getPoints()));
 
         return joinedVectorAngle(p0, p1, vertexCentroid);
 	}
 
-	private double joinedVectorAngle(final RealLocalizable p0, final RealLocalizable p1, final RealLocalizable tail) {
-        Vector3d u = realLocalizableToVector3d(p0);
-        Vector3d v = realLocalizableToVector3d(p1);
-        Vector3d t = realLocalizableToVector3d(tail);
+	private double joinedVectorAngle(final Vector3d p0, final Vector3d p1, final Vector3d tail) {
+        p0.sub(tail);
+        p1.sub(tail);
 
-        u.sub(t);
-        v.sub(t);
-
-		return u.angle(v);
+		return p0.angle(p1);
 	}
 
-    private static Vector3d realLocalizableToVector3d(final RealLocalizable localizable) {
-        final double[] coordinates = new double[localizable.numDimensions()];
-        localizable.localize(coordinates);
-        return new Vector3d(coordinates);
-    }
-
-    private Point getNthPointOfEdge(final Vertex vertex, final Edge edge, final int nthPoint) {
-        final ArrayList<Point> edgeSlabPoints = toImgLib2Points(edge.getSlabs());
+    /** Return the edge element n steps away from the given vertex */
+    private Vector3d getNthPointOfEdge(final Vertex vertex, final Edge edge, final int nthPoint) {
+        final List<Vector3d> edgeSlabPoints = toVector3d(edge.getSlabs());
 
 		if (edgeSlabPoints.isEmpty()) {
 			// No slabs, edge has only an end-point and a junction point
-			final PointCollection endPoints = toImgLib2PointCollection(edge.getOppositeVertex(vertex).getPoints());
-			return (Point) roundRealLocalizable(ops().geom().centroid(endPoints));
+            final List<Vector3d> endPoints = toVector3d(edge.getOppositeVertex(vertex).getPoints());
+            return (Vector3d) centroidOp.compute1(endPoints);
 		}
 
-
-		final Point edgeStart = edgeSlabPoints.get(0);
-		final ArrayList<Point> vertexPoints = toImgLib2Points(vertex.getPoints());
-		final boolean startAtZero = vertexPoints.stream().anyMatch(p -> isOneStepConnected(edgeStart, p));
+		final Vector3d edgeStart = edgeSlabPoints.get(0);
+		final List<Vector3d> vertexPoints = toVector3d(vertex.getPoints());
+		final boolean startsAtVertex = vertexPoints.stream().anyMatch(p -> is27Connected(edgeStart, p));
 
 		final int edgeIndex = Math.min(Math.max(0, nthPoint), edgeSlabPoints.size() - 1);
 
-		if (startAtZero) {
+		if (startsAtVertex) {
 			return edgeSlabPoints.get(edgeIndex);
 		} else {
 			final int edgeIndexFromEnd = edgeSlabPoints.size() - edgeIndex - 1;
@@ -181,55 +190,13 @@ public class TriplePointAngles
 		}
 	}
 
-    /** @todo Move to util Class / make Op */
-	private static Localizable roundRealLocalizable(final RealLocalizable localizable) {
-		final int numDimensions = localizable.numDimensions();
-		Point point = new Point(numDimensions);
-		final double[] coordinates = new double[numDimensions];
-		localizable.localize(coordinates);
+    private static boolean is27Connected(final Vector3d p0, final Vector3d p1) {
+        final double xDiff = Math.abs(p0.getX() - p1.getX());
+        final double yDiff = Math.abs(p0.getY() - p1.getY());
+        final double zDiff = Math.abs(p0.getZ() - p1.getZ());
 
-		for (int c = 0; c < coordinates.length; c++) {
-			point.setPosition(Math.round(c), 0);
-		}
-
-		return point;
-	}
-
-	/** @todo Offer to iarganda */
-	private static PointCollection toImgLib2PointCollection(final ArrayList<sc.fiji.analyzeSkeleton.Point> points) {
-		return new PointCollection(toImgLib2Points(points));
-	}
-
-	private static ArrayList<Point> toImgLib2Points(final ArrayList<sc.fiji.analyzeSkeleton.Point> points) {
-		ArrayList<Point> imgLib2Points = new ArrayList<>(points.size());
-
-		imgLib2Points.addAll(points.stream().map(TriplePointAngles::toImgLib2Point).collect(Collectors.toList()));
-
-		return imgLib2Points;
-	}
-
-	private static Point toImgLib2Point(final sc.fiji.analyzeSkeleton.Point point) {
-		return new Point(point.x, point.y, point.z);
-	}
-
-	/**
-     * @todo Make a binaryFunctionOp (RealLocalizable, RealLocalizable) -> boolean
-	 * @todo Generalize for different dimensionalities (distance in each dim <= 1)
-	 */
-	private static boolean isOneStepConnected(final RealLocalizable p0, final RealLocalizable p1) {
-		final int numDimensions = Math.max(p0.numDimensions(), p1.numDimensions());
-
-		for (int d = 0; d < numDimensions; d++) {
-			double position0 = getPosition(p0, d).orElse(0.0);
-			double position1 = getPosition(p1, d).orElse(0.0);
-			double diff = Math.abs(position0 - position1);
-			if (diff > 1) {
-				return false;
-			}
-		}
-
-		return true;
-	}
+        return xDiff <= 1 && yDiff <= 1 && zDiff <= 1;
+    }
 
 	private static Optional<Double> getPosition(final RealLocalizable r, final int dimension) {
 		return dimension >= 0 && dimension < r.numDimensions()
