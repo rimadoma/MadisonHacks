@@ -21,6 +21,7 @@ import org.scijava.vecmath.Vector3d;
 import sc.fiji.analyzeSkeleton.AnalyzeSkeleton_;
 import sc.fiji.analyzeSkeleton.Edge;
 import sc.fiji.analyzeSkeleton.Graph;
+import sc.fiji.analyzeSkeleton.Point;
 import sc.fiji.analyzeSkeleton.Vertex;
 
 import com.google.common.collect.ImmutableList;
@@ -36,12 +37,12 @@ public class TriplePointAngles
 		extends
 			AbstractBinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePointAngles.TriplePoint>>> {
 	private static final int VERTEX_TO_VERTEX = -1;
-    private UnaryFunctionOp<List<Vector3d>, Tuple3d> centroidOp;
+	private UnaryFunctionOp<List<Vector3d>, Tuple3d> centroidOp;
 
-    @Override
-    public void initialize() {
-        centroidOp = (UnaryFunctionOp) Functions.unary(ops(), CentroidVecMath3d.class, Tuple3d.class, List.class);
-    }
+	@Override
+	public void initialize() {
+		centroidOp = (UnaryFunctionOp) Functions.unary(ops(), CentroidVecMath3d.class, Tuple3d.class, List.class);
+	}
 
 	@Override
 	public ImmutableList<ImmutableList<TriplePoint>> compute2(final Graph[] graphs, final Integer nthPoint) {
@@ -109,9 +110,9 @@ public class TriplePointAngles
 		double thetas[] = new double[3];
 
 		if (nthPoint == VERTEX_TO_VERTEX) {
-            thetas[0] = vertexToVertexAngle(vertex, edge0, edge1);
-            thetas[1] = vertexToVertexAngle(vertex, edge0, edge2);
-            thetas[2] = vertexToVertexAngle(vertex, edge1, edge2);
+			thetas[0] = vertexToVertexAngle(vertex, edge0, edge1);
+			thetas[1] = vertexToVertexAngle(vertex, edge0, edge2);
+			thetas[2] = vertexToVertexAngle(vertex, edge1, edge2);
 		} else {
 			thetas[0] = vertexAngle(vertex, edge0, edge1, nthPoint);
 			thetas[1] = vertexAngle(vertex, edge0, edge2, nthPoint);
@@ -121,59 +122,60 @@ public class TriplePointAngles
 		return thetas;
 	}
 
-    /**
-     * Measure the angle between edge0, edge1 at vertex
-     * The measuring point is the opposing vertex at each edge
-     *
-     * @todo refactor to angle(vector c, vector 0, vector 1) where 0, 1 change based on nthPoint
-     */
-    private double vertexToVertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1) {
-        final List<Vector3d> vertexPoints = toVector3d(vertex.getPoints());
-        final List<Vector3d> oppositePoints0 = toVector3d(edge0.getOppositeVertex(vertex).getPoints());
-        final List<Vector3d> oppositePoints1 = toVector3d(edge1.getOppositeVertex(vertex).getPoints());
+	/**
+	 * Measure the angle between edge0, edge1 at vertex The measuring point is
+	 * the opposing vertex at each edge
+	 *
+	 * @todo refactor to angle(vector c, vector 0, vector 1) where 0, 1 change
+	 *       based on nthPoint
+	 */
+	private double vertexToVertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1) {
+		final List<Vector3d> vertexPoints = toVector3d(vertex.getPoints());
+		final List<Vector3d> oppositePoints0 = toVector3d(edge0.getOppositeVertex(vertex).getPoints());
+		final List<Vector3d> oppositePoints1 = toVector3d(edge1.getOppositeVertex(vertex).getPoints());
 
-        final Vector3d centroid = (Vector3d) centroidOp.compute1(vertexPoints);
-        final Vector3d oppositeCentroid0 = (Vector3d) centroidOp.compute1(oppositePoints0);
-        final Vector3d oppositeCentroid1 = (Vector3d) centroidOp.compute1(oppositePoints1);
+		final Vector3d centroid = (Vector3d) centroidOp.compute1(vertexPoints);
+		final Vector3d oppositeCentroid0 = (Vector3d) centroidOp.compute1(oppositePoints0);
+		final Vector3d oppositeCentroid1 = (Vector3d) centroidOp.compute1(oppositePoints1);
 
-        return joinedVectorAngle(oppositeCentroid0, oppositeCentroid1, centroid);
-    }
+		return joinedVectorAngle(oppositeCentroid0, oppositeCentroid1, centroid);
+	}
 
-    private List<Vector3d> toVector3d(final List<sc.fiji.analyzeSkeleton.Point> points) {
-        return points.stream().map(this::toVector3d).collect(Collectors.toList());
-    }
+	private List<Vector3d> toVector3d(final List<Point> points) {
+		return points.stream().map(this::toVector3d).collect(Collectors.toList());
+	}
 
-    private Vector3d toVector3d(final sc.fiji.analyzeSkeleton.Point point) {
-        return new Vector3d(point.x, point.y, point.z);
-    }
+	private Vector3d toVector3d(final Point point) {
+		return new Vector3d(point.x, point.y, point.z);
+	}
 
-    /**
-     * Measure the angle between edges 0 & 1 at vertex
-     * The measuring point is the nth slab element of each edge
-     */
-    private double vertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int nthPoint) {
+	/**
+	 * Measure the angle between edges 0 & 1 at vertex The measuring point is
+	 * the nth slab element of each edge
+	 */
+	private double vertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int nthPoint) {
 		final Vector3d p0 = getNthPointOfEdge(vertex, edge0, nthPoint);
 		final Vector3d p1 = getNthPointOfEdge(vertex, edge1, nthPoint);
-        final Vector3d vertexCentroid = (Vector3d) centroidOp.compute1(toVector3d(vertex.getPoints()));
+		final Vector3d vertexCentroid = (Vector3d) centroidOp.compute1(toVector3d(vertex.getPoints()));
 
-        return joinedVectorAngle(p0, p1, vertexCentroid);
+		return joinedVectorAngle(p0, p1, vertexCentroid);
 	}
 
 	private double joinedVectorAngle(final Vector3d p0, final Vector3d p1, final Vector3d tail) {
-        p0.sub(tail);
-        p1.sub(tail);
+		p0.sub(tail);
+		p1.sub(tail);
 
 		return p0.angle(p1);
 	}
 
-    /** Return the edge element n steps away from the given vertex */
-    private Vector3d getNthPointOfEdge(final Vertex vertex, final Edge edge, final int nthPoint) {
-        final List<Vector3d> edgeSlabPoints = toVector3d(edge.getSlabs());
+	/** Return the edge element n steps away from the given vertex */
+	private Vector3d getNthPointOfEdge(final Vertex vertex, final Edge edge, final int nthPoint) {
+		final List<Vector3d> edgeSlabPoints = toVector3d(edge.getSlabs());
 
 		if (edgeSlabPoints.isEmpty()) {
 			// No slabs, edge has only an end-point and a junction point
-            final List<Vector3d> endPoints = toVector3d(edge.getOppositeVertex(vertex).getPoints());
-            return (Vector3d) centroidOp.compute1(endPoints);
+			final List<Vector3d> endPoints = toVector3d(edge.getOppositeVertex(vertex).getPoints());
+			return (Vector3d) centroidOp.compute1(endPoints);
 		}
 
 		final Vector3d edgeStart = edgeSlabPoints.get(0);
@@ -190,13 +192,13 @@ public class TriplePointAngles
 		}
 	}
 
-    private static boolean is27Connected(final Vector3d p0, final Vector3d p1) {
-        final double xDiff = Math.abs(p0.getX() - p1.getX());
-        final double yDiff = Math.abs(p0.getY() - p1.getY());
-        final double zDiff = Math.abs(p0.getZ() - p1.getZ());
+	private static boolean is27Connected(final Vector3d p0, final Vector3d p1) {
+		final double xDiff = Math.abs(p0.getX() - p1.getX());
+		final double yDiff = Math.abs(p0.getY() - p1.getY());
+		final double zDiff = Math.abs(p0.getZ() - p1.getZ());
 
-        return xDiff <= 1 && yDiff <= 1 && zDiff <= 1;
-    }
+		return xDiff <= 1 && yDiff <= 1 && zDiff <= 1;
+	}
 
 	private static Optional<Double> getPosition(final RealLocalizable r, final int dimension) {
 		return dimension >= 0 && dimension < r.numDimensions()
