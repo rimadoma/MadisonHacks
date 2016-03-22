@@ -1,33 +1,24 @@
 package org.bonej.ops.triplePointAngles;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import net.imagej.ImageJ;
+import com.google.common.collect.ImmutableList;
 import net.imagej.ops.Op;
 import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
 import net.imagej.ops.special.function.UnaryFunctionOp;
 import net.imglib2.RealLocalizable;
-
 import org.bonej.ops.geom.CentroidVecMath3d;
 import org.scijava.plugin.Plugin;
 import org.scijava.vecmath.Tuple3d;
 import org.scijava.vecmath.Vector3d;
-
-import sc.fiji.analyzeSkeleton.AnalyzeSkeleton_;
 import sc.fiji.analyzeSkeleton.Edge;
 import sc.fiji.analyzeSkeleton.Graph;
 import sc.fiji.analyzeSkeleton.Point;
 import sc.fiji.analyzeSkeleton.Vertex;
 
-import com.google.common.collect.ImmutableList;
-
-import ij.ImagePlus;
-import ij.io.Opener;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * @author Richard Domander
@@ -65,35 +56,6 @@ public class TriplePointAngles
 		}
 
 		return ImmutableList.copyOf(skeletons);
-	}
-
-	// region -- Utility methods --
-
-	public static void main(String... args) {
-		// Open test image
-		File file = new File("./../SkeletonizedWFcuboid.tif");
-		final ImageJ ij = new ImageJ();
-		ImagePlus imagePlus = new Opener().openImage(file.getAbsolutePath());
-
-		// AnalyzeSkeleton
-		AnalyzeSkeleton_ analyzeSkeleton = new AnalyzeSkeleton_();
-		analyzeSkeleton.setup("", imagePlus);
-		analyzeSkeleton.run(AnalyzeSkeleton_.NONE, false, false, null, true, false);
-
-		// Run TriplePointAngles
-		Graph[] graphs = analyzeSkeleton.getGraphs();
-		ImmutableList<ImmutableList<TriplePoint>> results = (ImmutableList<ImmutableList<TriplePoint>>) ij.op()
-				.run(TriplePointAngles.class, graphs, -1);
-
-		// Print results
-		results.listIterator().forEachRemaining(l -> l.listIterator().forEachRemaining(r -> {
-			System.out.println("Skeleton #" + r.skeletonNumber);
-			System.out.println("Vertex #" + r.vertexNumber);
-			r.angles.forEach(a -> System.out.print(a + " "));
-			System.out.println("\n");
-		}));
-
-		ij.context().dispose();
 	}
 
 	// region -- Helper methods --
