@@ -6,7 +6,7 @@ import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
 import net.imagej.ops.special.function.UnaryFunctionOp;
 import net.imglib2.RealLocalizable;
-import org.bonej.ops.geom.CentroidVecMath3d;
+import org.bonej.ops.geom.CentroidLinAlg3d;
 import org.scijava.plugin.Plugin;
 import org.scijava.vecmath.Tuple3d;
 import org.scijava.vecmath.Vector3d;
@@ -32,7 +32,7 @@ public class TriplePointAngles
 
 	@Override
 	public void initialize() {
-		centroidOp = (UnaryFunctionOp) Functions.unary(ops(), CentroidVecMath3d.class, Tuple3d.class, List.class);
+		centroidOp = (UnaryFunctionOp) Functions.unary(ops(), CentroidLinAlg3d.class, Tuple3d.class, List.class);
 	}
 
 	@Override
