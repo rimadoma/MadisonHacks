@@ -123,7 +123,21 @@ public class TriplePointAngles
 		return joinedVectorAngle(p0, p1, vertexCentroid);
 	}
 
+    /** @todo Discuss rounding with mdoube - expected or unexpected results? */
 	private double joinedVectorAngle(final Vector3d p0, final Vector3d p1, final Vector3d tail) {
+        // Round vectors to whole numbers to avoid angle measurement errors
+        p0.setX(Math.round(p0.getX()));
+        p0.setY(Math.round(p0.getY()));
+        p0.setZ(Math.round(p0.getZ()));
+        
+        p1.setX(Math.round(p1.getX()));
+        p1.setY(Math.round(p1.getY()));
+        p1.setZ(Math.round(p1.getZ()));
+        
+        tail.setX(Math.round(tail.getX()));
+        tail.setY(Math.round(tail.getY()));
+        tail.setZ(Math.round(tail.getZ()));
+
 		p0.sub(tail);
 		p1.sub(tail);
 
