@@ -1,24 +1,25 @@
 package org.bonej.ops.triplePointAngles;
 
-import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import net.imagej.ops.Op;
 import net.imagej.ops.special.function.AbstractBinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
 import net.imagej.ops.special.function.UnaryFunctionOp;
-import net.imglib2.RealLocalizable;
+
 import org.bonej.ops.geom.CentroidLinAlg3d;
 import org.scijava.plugin.Plugin;
 import org.scijava.vecmath.Tuple3d;
 import org.scijava.vecmath.Vector3d;
+
 import sc.fiji.analyzeSkeleton.Edge;
 import sc.fiji.analyzeSkeleton.Graph;
 import sc.fiji.analyzeSkeleton.Point;
 import sc.fiji.analyzeSkeleton.Vertex;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.google.common.collect.ImmutableList;
 
 /**
  * @author Richard Domander
@@ -36,7 +37,7 @@ public class TriplePointAngles
 	}
 
 	@Override
-	public ImmutableList<ImmutableList<TriplePoint>> compute2(final Graph[] graphs, final Integer nthPoint) {
+	public ImmutableList<ImmutableList<TriplePoint>> compute2(final Graph[] graphs, final Integer measurementPoint) {
 		final List<TriplePoint> triplePoints = new ArrayList<>();
 		final List<ImmutableList<TriplePoint>> skeletons = new ArrayList<>();
 
@@ -49,7 +50,7 @@ public class TriplePointAngles
 					continue;
 				}
 
-				double[] angles = triplePointAngles(vertex, nthPoint);
+				double[] angles = triplePointAngles(vertex, measurementPoint);
 				triplePoints.add(new TriplePoint(g, v, ImmutableList.of(angles[0], angles[1], angles[2])));
 			}
 			skeletons.add(ImmutableList.copyOf(triplePoints));
@@ -63,7 +64,7 @@ public class TriplePointAngles
 		return vertex.getBranches().size() == 3;
 	}
 
-	private double[] triplePointAngles(final Vertex vertex, final int nthPoint) {
+	private double[] triplePointAngles(final Vertex vertex, final int measurementPoint) {
 		ArrayList<Edge> edges = vertex.getBranches();
 		Edge edge0 = edges.get(0);
 		Edge edge1 = edges.get(1);
@@ -71,36 +72,33 @@ public class TriplePointAngles
 
 		double thetas[] = new double[3];
 
-		if (nthPoint == VERTEX_TO_VERTEX) {
-			thetas[0] = vertexToVertexAngle(vertex, edge0, edge1);
-			thetas[1] = vertexToVertexAngle(vertex, edge0, edge2);
-			thetas[2] = vertexToVertexAngle(vertex, edge1, edge2);
-		} else {
-			thetas[0] = vertexAngle(vertex, edge0, edge1, nthPoint);
-			thetas[1] = vertexAngle(vertex, edge0, edge2, nthPoint);
-			thetas[2] = vertexAngle(vertex, edge1, edge2, nthPoint);
-		}
+		thetas[0] = measureAngle(vertex, edge0, edge1, measurementPoint);
+		thetas[1] = measureAngle(vertex, edge0, edge2, measurementPoint);
+		thetas[2] = measureAngle(vertex, edge1, edge2, measurementPoint);
 
 		return thetas;
 	}
 
-	/**
-	 * Measure the angle between edge0, edge1 at vertex The measuring point is
-	 * the opposing vertex at each edge
-	 *
-	 * @todo refactor to angle(vector c, vector 0, vector 1) where 0, 1 change
-	 *       based on nthPoint
-	 */
-	private double vertexToVertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1) {
-		final List<Vector3d> vertexPoints = toVector3d(vertex.getPoints());
-		final List<Vector3d> oppositePoints0 = toVector3d(edge0.getOppositeVertex(vertex).getPoints());
-		final List<Vector3d> oppositePoints1 = toVector3d(edge1.getOppositeVertex(vertex).getPoints());
+	private double measureAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int measurementPoint) {
+		final Vector3d anglePoint = (Vector3d) centroidOp.compute1(toVector3d(vertex.getPoints()));
+		final Vector3d oppositePoint0 = getMeasurementPoint(vertex, edge0, measurementPoint);
+		final Vector3d oppositePoint1 = getMeasurementPoint(vertex, edge1, measurementPoint);
 
-		final Vector3d centroid = (Vector3d) centroidOp.compute1(vertexPoints);
-		final Vector3d oppositeCentroid0 = (Vector3d) centroidOp.compute1(oppositePoints0);
-		final Vector3d oppositeCentroid1 = (Vector3d) centroidOp.compute1(oppositePoints1);
+		return joinedVectorAngle(oppositePoint0, oppositePoint1, anglePoint);
+	}
 
-		return joinedVectorAngle(oppositeCentroid0, oppositeCentroid1, centroid);
+	private Vector3d getMeasurementPoint(final Vertex vertex, final Edge edge, final int measurementPoint) {
+		if (measurementPoint == VERTEX_TO_VERTEX || edge.getSlabs().isEmpty()) {
+			return getOppositePoint(vertex, edge);
+		}
+
+		return getNthSlabOfEdge(vertex, edge, measurementPoint);
+	}
+
+	private Vector3d getOppositePoint(final Vertex vertex, final Edge edge) {
+		final Vertex oppositeVertex = edge.getOppositeVertex(vertex);
+		final List<Vector3d> oppositeVertexVectors = toVector3d(oppositeVertex.getPoints());
+		return (Vector3d) centroidOp.compute1(oppositeVertexVectors);
 	}
 
 	private List<Vector3d> toVector3d(final List<Point> points) {
@@ -111,75 +109,56 @@ public class TriplePointAngles
 		return new Vector3d(point.x, point.y, point.z);
 	}
 
-	/**
-	 * Measure the angle between edges 0 & 1 at vertex The measuring point is
-	 * the nth slab element of each edge
-	 */
-	private double vertexAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int nthPoint) {
-		final Vector3d p0 = getNthPointOfEdge(vertex, edge0, nthPoint);
-		final Vector3d p1 = getNthPointOfEdge(vertex, edge1, nthPoint);
-		final Vector3d vertexCentroid = (Vector3d) centroidOp.compute1(toVector3d(vertex.getPoints()));
-
-		return joinedVectorAngle(p0, p1, vertexCentroid);
-	}
-
-    /** @todo Discuss rounding with mdoube - expected or unexpected results? */
+	/** @todo Discuss rounding with mdoube - expected or unexpected results? */
 	private double joinedVectorAngle(final Vector3d p0, final Vector3d p1, final Vector3d tail) {
-        // Round vectors to whole numbers to avoid angle measurement errors
-        p0.setX(Math.round(p0.getX()));
-        p0.setY(Math.round(p0.getY()));
-        p0.setZ(Math.round(p0.getZ()));
-        
-        p1.setX(Math.round(p1.getX()));
-        p1.setY(Math.round(p1.getY()));
-        p1.setZ(Math.round(p1.getZ()));
-        
-        tail.setX(Math.round(tail.getX()));
-        tail.setY(Math.round(tail.getY()));
-        tail.setZ(Math.round(tail.getZ()));
+		// Round vectors to whole numbers to avoid angle measurement errors
+		Vector3d u = roundVector(p0);
+		Vector3d v = roundVector(p1);
+		Vector3d t = roundVector(tail);
 
-		p0.sub(tail);
-		p1.sub(tail);
+		u.sub(t);
+		v.sub(t);
 
-		return p0.angle(p1);
+		return u.angle(v);
 	}
 
-	/** Return the edge element n steps away from the given vertex */
-	private Vector3d getNthPointOfEdge(final Vertex vertex, final Edge edge, final int nthPoint) {
-		final List<Vector3d> edgeSlabPoints = toVector3d(edge.getSlabs());
+	private Vector3d roundVector(final Vector3d vector) {
+		final long x = Math.round(vector.getX());
+		final long y = Math.round(vector.getY());
+		final long z = Math.round(vector.getZ());
+		return new Vector3d(x, y, z);
+	}
 
-		if (edgeSlabPoints.isEmpty()) {
-			// No slabs, edge has only an end-point and a junction point
-			final List<Vector3d> endPoints = toVector3d(edge.getOppositeVertex(vertex).getPoints());
-			return (Vector3d) centroidOp.compute1(endPoints);
-		}
-
-		final Vector3d edgeStart = edgeSlabPoints.get(0);
+	/** Return the nth edge slab away from the given vertex */
+	private Vector3d getNthSlabOfEdge(final Vertex vertex, final Edge edge, final int nthSlab) {
+		final List<Vector3d> slabs = toVector3d(edge.getSlabs());
+		final Vector3d firstSlab = slabs.get(0);
 		final List<Vector3d> vertexPoints = toVector3d(vertex.getPoints());
-		final boolean startsAtVertex = vertexPoints.stream().anyMatch(p -> is27Connected(edgeStart, p));
 
-		final int edgeIndex = Math.min(Math.max(0, nthPoint), edgeSlabPoints.size() - 1);
+		// Check if the given edge starts from the given vertex,
+		// or its opposite vertex
+		final boolean startsAtVertex = vertexPoints.stream().anyMatch(p -> isAxesDistancesOne(firstSlab, p));
+
+		final int slabIndex = Math.min(Math.max(0, nthSlab), slabs.size() - 1);
 
 		if (startsAtVertex) {
-			return edgeSlabPoints.get(edgeIndex);
+			return slabs.get(slabIndex);
 		} else {
-			final int edgeIndexFromEnd = edgeSlabPoints.size() - edgeIndex - 1;
-			return edgeSlabPoints.get(edgeIndexFromEnd);
+			final int slabIndexFromEnd = slabs.size() - slabIndex - 1;
+			return slabs.get(slabIndexFromEnd);
 		}
 	}
 
-	private static boolean is27Connected(final Vector3d p0, final Vector3d p1) {
+	/**
+	 * Returns true if the distance of the two vectors in each dimension is less
+	 * than one. Can be used to check if vector p1 is in the 27-neighborhood of p0.
+	 */
+	private static boolean isAxesDistancesOne(final Vector3d p0, final Vector3d p1) {
 		final double xDiff = Math.abs(p0.getX() - p1.getX());
 		final double yDiff = Math.abs(p0.getY() - p1.getY());
 		final double zDiff = Math.abs(p0.getZ() - p1.getZ());
 
 		return xDiff <= 1 && yDiff <= 1 && zDiff <= 1;
-	}
-
-	private static Optional<Double> getPosition(final RealLocalizable r, final int dimension) {
-		return dimension >= 0 && dimension < r.numDimensions()
-				? Optional.of(r.getDoublePosition(dimension))
-				: Optional.empty();
 	}
 	// endregion
 

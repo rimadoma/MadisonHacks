@@ -21,6 +21,7 @@ import ij.ImagePlus;
  * Unit tests for TriplePointAngles
  *
  * @author Richard Domander
+ * @todo Write mock Graph[] instead of running test image trough tool chain
  */
 public class TriplePointAnglesTest {
     private static final double HALF_PI = Math.PI / 2.0;
@@ -31,14 +32,14 @@ public class TriplePointAnglesTest {
 	@BeforeClass
 	public static void oneTimeSetup() {
 		// Generate test image
-		ImagePlus imagePlus = StaticImagePlusGenerator.wireFrameCuboid(128, 128, 128, 32);
+		ImagePlus imagePlus = StaticImagePlusGenerator.wireFrameCuboid(10, 10, 10, 1);
 
 		// Skeletonize image
 		final Skeletonize3D_ skeletonize3D = new Skeletonize3D_();
 		skeletonize3D.setup("", imagePlus);
 		skeletonize3D.run(null);
 
-		// Get skeleton cuboidGraphs
+		// Get skeleton graphs
 		AnalyzeSkeleton_ analyzeSkeleton = new AnalyzeSkeleton_();
 		analyzeSkeleton.setup("", imagePlus);
 		analyzeSkeleton.run(AnalyzeSkeleton_.NONE, false, false, null, true, false);
@@ -53,7 +54,7 @@ public class TriplePointAnglesTest {
 	/** Regression test */
 	@Test
 	public void testTriplePointAnglesNthPoint() throws AssertionError {
-		final int nthPoint = 32;
+		final int nthPoint = 5;
 
 		final ImmutableList<ImmutableList<TriplePoint>> results = triplePointAnglesOp.compute2(cuboidGraphs, nthPoint);
 
