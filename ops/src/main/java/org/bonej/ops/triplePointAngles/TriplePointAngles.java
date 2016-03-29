@@ -1,5 +1,8 @@
 package org.bonej.ops.triplePointAngles;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,12 +25,21 @@ import sc.fiji.analyzeSkeleton.Vertex;
 import com.google.common.collect.ImmutableList;
 
 /**
+ * An Op which calculates the angles at each triple point in the given Graph
+ * array. A triple point is a point where three edges in meet. The Graph array
+ * is an output of AnalyzeSkeleton_ plugin.
+ *
+ * The second option of the Op controls the point from which the angle is
+ * measured. Measuring the angle from the opposite vertices of the triple point
+ * may be misleading if the edges are highly curved.
+ *
+ * @author Michael Doube
  * @author Richard Domander
  */
 @Plugin(type = Op.class)
 public class TriplePointAngles
 		extends
-			AbstractBinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePointAngles.TriplePoint>>> {
+			AbstractBinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePointAngles.Angles>>> {
 	private static final int VERTEX_TO_VERTEX = -1;
 	private UnaryFunctionOp<List<Vector3d>, Tuple3d> centroidOp;
 
@@ -36,10 +48,20 @@ public class TriplePointAngles
 		centroidOp = (UnaryFunctionOp) Functions.unary(ops(), CentroidLinAlg3d.class, Tuple3d.class, List.class);
 	}
 
+	/**
+	 * Calculates the angles at the triple points in the given graphs
+	 *
+	 * @param graphs
+	 *            An array of Graphs produced by the AnalyzeSkeleton_ plugin
+	 * @param measurementPoint
+	 *            if >= 0, then measure angle from the nth voxel (slab) of the
+	 *            edge if == -1, then measure angle from the opposite vertex
+	 * @return Lists of measured angles of the triple points in the graphs
+	 */
 	@Override
-	public ImmutableList<ImmutableList<TriplePoint>> compute2(final Graph[] graphs, final Integer measurementPoint) {
-		final List<TriplePoint> triplePoints = new ArrayList<>();
-		final List<ImmutableList<TriplePoint>> skeletons = new ArrayList<>();
+	public ImmutableList<ImmutableList<Angles>> compute2(final Graph[] graphs, final Integer measurementPoint) {
+		final List<Angles> triplePoints = new ArrayList<>();
+		final List<ImmutableList<Angles>> graphList = new ArrayList<>();
 
 		for (int g = 0; g < graphs.length; g++) {
 			final List<Vertex> vertices = graphs[g].getVertices();
@@ -51,12 +73,12 @@ public class TriplePointAngles
 				}
 
 				double[] angles = triplePointAngles(vertex, measurementPoint);
-				triplePoints.add(new TriplePoint(g, v, ImmutableList.of(angles[0], angles[1], angles[2])));
+				triplePoints.add(new Angles(g, v, ImmutableList.of(angles[0], angles[1], angles[2])));
 			}
-			skeletons.add(ImmutableList.copyOf(triplePoints));
+			graphList.add(ImmutableList.copyOf(triplePoints));
 		}
 
-		return ImmutableList.copyOf(skeletons);
+		return ImmutableList.copyOf(graphList);
 	}
 
 	// region -- Helper methods --
@@ -64,6 +86,16 @@ public class TriplePointAngles
 		return vertex.getBranches().size() == 3;
 	}
 
+	/**
+	 * Calculates the angles of the triple point
+	 * 
+	 * @param vertex
+	 *            A triple point in a Graph - must have three branches
+	 * @param measurementPoint
+	 *            if >= 0, then measure angle from the nth voxel (slab) of the
+	 *            edge if == -1, then measure angle from the opposite vertex
+	 * @return The three angles in an array
+	 */
 	private double[] triplePointAngles(final Vertex vertex, final int measurementPoint) {
 		ArrayList<Edge> edges = vertex.getBranches();
 		Edge edge0 = edges.get(0);
@@ -79,6 +111,20 @@ public class TriplePointAngles
 		return thetas;
 	}
 
+	/**
+	 * Calculates the angle between the given edges at the given vertex
+	 * 
+	 * @param vertex
+	 *            The meeting point of the edges
+	 * @param edge0
+	 *            One of the edges in the triple point
+	 * @param edge1
+	 *            Another edge in the triple point
+	 * @param measurementPoint
+	 *            if >= 0, then measure angle from the nth voxel (slab) of the
+	 *            edge if == -1, then measure angle from the opposite vertices
+	 * @return Angle in radians
+	 */
 	private double measureAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int measurementPoint) {
 		final Vector3d anglePoint = (Vector3d) centroidOp.compute1(toVector3d(vertex.getPoints()));
 		final Vector3d oppositePoint0 = getMeasurementPoint(vertex, edge0, measurementPoint);
@@ -87,15 +133,32 @@ public class TriplePointAngles
 		return joinedVectorAngle(oppositePoint0, oppositePoint1, anglePoint);
 	}
 
+	/**
+	 * Returns the point from which the angle for the given edge is measured
+	 *
+	 * @param vertex
+	 *            Point where the edge meets another edge (triple point)
+	 * @param edge
+	 *            Edge in the graph
+	 * @param measurementPoint
+	 *            if >= 0, then measure angle from the nth voxel (slab) of the
+	 *            edge (counting from the vertex). if == -1, then measure angle
+	 *            from the opposite vertices
+	 * @return A Vector3d for @see joinedVectorAngle
+	 */
 	private Vector3d getMeasurementPoint(final Vertex vertex, final Edge edge, final int measurementPoint) {
 		if (measurementPoint == VERTEX_TO_VERTEX || edge.getSlabs().isEmpty()) {
-			return getOppositePoint(vertex, edge);
+			return getOppositeCentroid(vertex, edge);
 		}
 
 		return getNthSlabOfEdge(vertex, edge, measurementPoint);
 	}
 
-	private Vector3d getOppositePoint(final Vertex vertex, final Edge edge) {
+	/**
+	 * Returns the centroid of the opposite vertex of the given vertex along the
+	 * given edge
+	 */
+	private Vector3d getOppositeCentroid(final Vertex vertex, final Edge edge) {
 		final Vertex oppositeVertex = edge.getOppositeVertex(vertex);
 		final List<Vector3d> oppositeVertexVectors = toVector3d(oppositeVertex.getPoints());
 		return (Vector3d) centroidOp.compute1(oppositeVertexVectors);
@@ -122,6 +185,9 @@ public class TriplePointAngles
 		return u.angle(v);
 	}
 
+	/**
+	 * Returns a copy of the given vector where each coordinate has been rounded
+	 */
 	private Vector3d roundVector(final Vector3d vector) {
 		final long x = Math.round(vector.getX());
 		final long y = Math.round(vector.getY());
@@ -151,7 +217,8 @@ public class TriplePointAngles
 
 	/**
 	 * Returns true if the distance of the two vectors in each dimension is less
-	 * than one. Can be used to check if vector p1 is in the 27-neighborhood of p0.
+	 * than one. Can be used to check if vector p1 is in the 27-neighborhood of
+	 * p0.
 	 */
 	private static boolean isAxesDistancesOne(final Vector3d p0, final Vector3d p1) {
 		final double xDiff = Math.abs(p0.getX() - p1.getX());
@@ -163,14 +230,28 @@ public class TriplePointAngles
 	// endregion
 
 	// region -- Helper classes --
-	public static final class TriplePoint {
-		public final int skeletonNumber;
-		public final int vertexNumber;
+	/**
+	 * A simple "struct record" class that contains the angles of a triple point
+	 */
+	public static final class Angles {
+		/** The number of the graph in the image */
+		public final int graphNumber;
+		/** The number of the triple point in the graph */
+		public final int triplePointNumber;
+		/** The angles at the triple point in radians */
 		public final ImmutableList<Double> angles;
 
-		public TriplePoint(final int skeletonNumber, final int vertexNumber, final ImmutableList<Double> angles) {
-			this.skeletonNumber = skeletonNumber;
-			this.vertexNumber = vertexNumber;
+        /**
+         * @throws NullPointerException if angles == null
+         * @throws IllegalArgumentException if angles.size() != 3
+         */
+		public Angles(final int graphNumber, final int triplePointNumber, final ImmutableList<Double> angles)
+				throws NullPointerException, IllegalArgumentException {
+			checkNotNull(angles, "Angles cannot be null");
+			checkArgument(angles.size() == 3, "Must have three angles");
+
+			this.graphNumber = graphNumber;
+			this.triplePointNumber = triplePointNumber;
 			this.angles = angles;
 		}
 	}

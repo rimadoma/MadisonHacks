@@ -6,7 +6,7 @@ import net.imagej.ImageJ;
 import net.imagej.ops.special.function.BinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
 
-import org.bonej.ops.triplePointAngles.TriplePointAngles.TriplePoint;
+import org.bonej.ops.triplePointAngles.TriplePointAngles.Angles;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -27,7 +27,7 @@ public class TriplePointAnglesTest {
     private static final double HALF_PI = Math.PI / 2.0;
 	private static final ImageJ IMAGE_J = new ImageJ();
 	private static Graph[] cuboidGraphs;
-	private static BinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePoint>>> triplePointAnglesOp;
+	private static BinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<Angles>>> triplePointAnglesOp;
 
 	@BeforeClass
 	public static void oneTimeSetup() {
@@ -56,7 +56,7 @@ public class TriplePointAnglesTest {
 	public void testTriplePointAnglesNthPoint() throws AssertionError {
 		final int nthPoint = 5;
 
-		final ImmutableList<ImmutableList<TriplePoint>> results = triplePointAnglesOp.compute2(cuboidGraphs, nthPoint);
+		final ImmutableList<ImmutableList<Angles>> results = triplePointAnglesOp.compute2(cuboidGraphs, nthPoint);
 
 		results.listIterator().forEachRemaining(l -> l.listIterator().forEachRemaining(
 				p -> p.angles.listIterator().forEachRemaining(a -> assertEquals(HALF_PI, a, 1e-12))));
@@ -65,7 +65,7 @@ public class TriplePointAnglesTest {
 	/** Regression test */
 	@Test
 	public void testTriplePointAnglesVertexToVertex() throws AssertionError {
-		final ImmutableList<ImmutableList<TriplePoint>> results = triplePointAnglesOp.compute2(cuboidGraphs, -1);
+		final ImmutableList<ImmutableList<Angles>> results = triplePointAnglesOp.compute2(cuboidGraphs, -1);
 
 		// @todo rewrite with clearer loops
 		results.listIterator().forEachRemaining(l -> l.listIterator()
