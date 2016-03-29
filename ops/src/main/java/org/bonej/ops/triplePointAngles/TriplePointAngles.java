@@ -33,14 +33,18 @@ import com.google.common.collect.ImmutableList;
  * measured. Measuring the angle from the opposite vertices of the triple point
  * may be misleading if the edges are highly curved.
  *
+ * NB "edge" and "vertex" have a special meaning in this class,
+ * they refer to @see AnalyzeSkeleton_#Edge and @see AnalyzeSkeleton_#Vertex
+ *
  * @author Michael Doube
  * @author Richard Domander
  */
 @Plugin(type = Op.class)
 public class TriplePointAngles
 		extends
-			AbstractBinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePointAngles.Angles>>> {
-	private static final int VERTEX_TO_VERTEX = -1;
+			AbstractBinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePointAngles.TriplePoint>>> {
+	/** A special value for measurementPoint */
+	public static final int VERTEX_TO_VERTEX = -1;
 	private UnaryFunctionOp<List<Vector3d>, Tuple3d> centroidOp;
 
 	@Override
@@ -55,13 +59,14 @@ public class TriplePointAngles
 	 *            An array of Graphs produced by the AnalyzeSkeleton_ plugin
 	 * @param measurementPoint
 	 *            if >= 0, then measure angle from the nth voxel (slab) of the
-	 *            edge if == -1, then measure angle from the opposite vertex
+	 *            edge if == -1, then measure angle from the centroid of the
+	 *            opposite vertex
 	 * @return Lists of measured angles of the triple points in the graphs
 	 */
 	@Override
-	public ImmutableList<ImmutableList<Angles>> compute2(final Graph[] graphs, final Integer measurementPoint) {
-		final List<Angles> triplePoints = new ArrayList<>();
-		final List<ImmutableList<Angles>> graphList = new ArrayList<>();
+	public ImmutableList<ImmutableList<TriplePoint>> compute2(final Graph[] graphs, final Integer measurementPoint) {
+		final List<TriplePoint> triplePoints = new ArrayList<>();
+		final List<ImmutableList<TriplePoint>> graphList = new ArrayList<>();
 
 		for (int g = 0; g < graphs.length; g++) {
 			final List<Vertex> vertices = graphs[g].getVertices();
@@ -73,7 +78,7 @@ public class TriplePointAngles
 				}
 
 				double[] angles = triplePointAngles(vertex, measurementPoint);
-				triplePoints.add(new Angles(g, v, ImmutableList.of(angles[0], angles[1], angles[2])));
+				triplePoints.add(new TriplePoint(g, v, ImmutableList.of(angles[0], angles[1], angles[2])));
 			}
 			graphList.add(ImmutableList.copyOf(triplePoints));
 		}
@@ -93,7 +98,8 @@ public class TriplePointAngles
 	 *            A triple point in a Graph - must have three branches
 	 * @param measurementPoint
 	 *            if >= 0, then measure angle from the nth voxel (slab) of the
-	 *            edge if == -1, then measure angle from the opposite vertex
+	 *            edge if == -1, then measure angle from the centroid of the
+	 *            opposite vertex
 	 * @return The three angles in an array
 	 */
 	private double[] triplePointAngles(final Vertex vertex, final int measurementPoint) {
@@ -122,7 +128,8 @@ public class TriplePointAngles
 	 *            Another edge in the triple point
 	 * @param measurementPoint
 	 *            if >= 0, then measure angle from the nth voxel (slab) of the
-	 *            edge if == -1, then measure angle from the opposite vertices
+	 *            edge if == -1, then measure angle from the centroid of the
+	 *            opposite vertex
 	 * @return Angle in radians
 	 */
 	private double measureAngle(final Vertex vertex, final Edge edge0, final Edge edge1, final int measurementPoint) {
@@ -143,7 +150,7 @@ public class TriplePointAngles
 	 * @param measurementPoint
 	 *            if >= 0, then measure angle from the nth voxel (slab) of the
 	 *            edge (counting from the vertex). if == -1, then measure angle
-	 *            from the opposite vertices
+	 *            from the centroid of the opposite vertex
 	 * @return A Vector3d for @see joinedVectorAngle
 	 */
 	private Vector3d getMeasurementPoint(final Vertex vertex, final Edge edge, final int measurementPoint) {
@@ -233,7 +240,7 @@ public class TriplePointAngles
 	/**
 	 * A simple "struct record" class that contains the angles of a triple point
 	 */
-	public static final class Angles {
+	public static final class TriplePoint {
 		/** The number of the graph in the image */
 		public final int graphNumber;
 		/** The number of the triple point in the graph */
@@ -241,14 +248,16 @@ public class TriplePointAngles
 		/** The angles at the triple point in radians */
 		public final ImmutableList<Double> angles;
 
-        /**
-         * @throws NullPointerException if angles == null
-         * @throws IllegalArgumentException if angles.size() != 3
-         */
-		public Angles(final int graphNumber, final int triplePointNumber, final ImmutableList<Double> angles)
+		/**
+		 * @throws NullPointerException
+		 *             if angles == null
+		 * @throws IllegalArgumentException
+		 *             if angles.size() != 3
+		 */
+		public TriplePoint(final int graphNumber, final int triplePointNumber, final ImmutableList<Double> angles)
 				throws NullPointerException, IllegalArgumentException {
 			checkNotNull(angles, "Angles cannot be null");
-			checkArgument(angles.size() == 3, "Must have three angles");
+			checkArgument(angles.size() == 3, "Triple point must have three angles");
 
 			this.graphNumber = graphNumber;
 			this.triplePointNumber = triplePointNumber;

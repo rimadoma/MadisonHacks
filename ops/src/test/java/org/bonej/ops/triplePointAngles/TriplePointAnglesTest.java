@@ -6,7 +6,7 @@ import net.imagej.ImageJ;
 import net.imagej.ops.special.function.BinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
 
-import org.bonej.ops.triplePointAngles.TriplePointAngles.Angles;
+import org.bonej.ops.triplePointAngles.TriplePointAngles.TriplePoint;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -24,15 +24,15 @@ import ij.ImagePlus;
  * @todo Write mock Graph[] instead of running test image trough tool chain
  */
 public class TriplePointAnglesTest {
-    private static final double HALF_PI = Math.PI / 2.0;
+	private static final double HALF_PI = Math.PI / 2.0;
 	private static final ImageJ IMAGE_J = new ImageJ();
 	private static Graph[] cuboidGraphs;
-	private static BinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<Angles>>> triplePointAnglesOp;
+	private static BinaryFunctionOp<Graph[], Integer, ImmutableList<ImmutableList<TriplePoint>>> triplePointAnglesOp;
 
 	@BeforeClass
 	public static void oneTimeSetup() {
 		// Generate test image
-		ImagePlus imagePlus = StaticImagePlusGenerator.wireFrameCuboid(10, 10, 10, 1);
+		ImagePlus imagePlus = StaticImagePlusGenerator.wireFrameCuboid(5, 5, 5, 1);
 
 		// Skeletonize image
 		final Skeletonize3D_ skeletonize3D = new Skeletonize3D_();
@@ -54,21 +54,33 @@ public class TriplePointAnglesTest {
 	/** Regression test */
 	@Test
 	public void testTriplePointAnglesNthPoint() throws AssertionError {
-		final int nthPoint = 5;
+		final int nthPoint = 2;
 
-		final ImmutableList<ImmutableList<Angles>> results = triplePointAnglesOp.compute2(cuboidGraphs, nthPoint);
+		final ImmutableList<ImmutableList<TriplePoint>> graphs = triplePointAnglesOp.compute2(cuboidGraphs, nthPoint);
 
-		results.listIterator().forEachRemaining(l -> l.listIterator().forEachRemaining(
-				p -> p.angles.listIterator().forEachRemaining(a -> assertEquals(HALF_PI, a, 1e-12))));
+		for (int g = 0; g < graphs.size(); g++) {
+			final ImmutableList<TriplePoint> triplePoints = graphs.get(g);
+			for (int t = 0; t < triplePoints.size(); t++) {
+				final TriplePoint triplePoint = triplePoints.get(t);
+				triplePoint.angles
+						.forEach(a -> assertEquals("Triple point angle should be a right angle", HALF_PI, a, 1e-12));
+			}
+		}
 	}
 
 	/** Regression test */
 	@Test
 	public void testTriplePointAnglesVertexToVertex() throws AssertionError {
-		final ImmutableList<ImmutableList<Angles>> results = triplePointAnglesOp.compute2(cuboidGraphs, -1);
+		final ImmutableList<ImmutableList<TriplePoint>> graphs = triplePointAnglesOp.compute2(cuboidGraphs,
+				TriplePointAngles.VERTEX_TO_VERTEX);
 
-		// @todo rewrite with clearer loops
-		results.listIterator().forEachRemaining(l -> l.listIterator()
-				.forEachRemaining(p -> p.angles.listIterator().forEachRemaining(a -> assertEquals(HALF_PI, a, 1e-12))));
+		for (int g = 0; g < graphs.size(); g++) {
+			final ImmutableList<TriplePoint> triplePoints = graphs.get(g);
+			for (int t = 0; t < triplePoints.size(); t++) {
+				final TriplePoint triplePoint = triplePoints.get(t);
+				triplePoint.angles
+						.forEach(a -> assertEquals("Triple point angle should be a right angle", HALF_PI, a, 1e-12));
+			}
+		}
 	}
 }
