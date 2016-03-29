@@ -7,6 +7,7 @@ import net.imagej.ops.special.function.BinaryFunctionOp;
 import net.imagej.ops.special.function.Functions;
 
 import org.bonej.ops.triplePointAngles.TriplePointAngles.TriplePoint;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -32,16 +33,16 @@ public class TriplePointAnglesTest {
 	@BeforeClass
 	public static void oneTimeSetup() {
 		// Generate test image
-		ImagePlus imagePlus = StaticImagePlusGenerator.wireFrameCuboid(5, 5, 5, 1);
+		Object imagePlus = StaticImagePlusGenerator.wireFrameCuboid(5, 5, 5, 1);
 
 		// Skeletonize image
 		final Skeletonize3D_ skeletonize3D = new Skeletonize3D_();
-		skeletonize3D.setup("", imagePlus);
+		skeletonize3D.setup("", (ImagePlus) imagePlus);
 		skeletonize3D.run(null);
 
 		// Get skeleton graphs
 		AnalyzeSkeleton_ analyzeSkeleton = new AnalyzeSkeleton_();
-		analyzeSkeleton.setup("", imagePlus);
+		analyzeSkeleton.setup("", (ImagePlus) imagePlus);
 		analyzeSkeleton.run(AnalyzeSkeleton_.NONE, false, false, null, true, false);
 
 		cuboidGraphs = analyzeSkeleton.getGraphs();
@@ -49,6 +50,11 @@ public class TriplePointAnglesTest {
 		// Match op
 		triplePointAnglesOp = (BinaryFunctionOp) Functions.binary(IMAGE_J.op(), TriplePointAngles.class,
 				ImmutableList.class, Graph.class, Integer.class);
+	}
+
+	@AfterClass
+	public static void oneTimeTearDown() {
+		IMAGE_J.context().dispose();
 	}
 
 	/** Regression test */

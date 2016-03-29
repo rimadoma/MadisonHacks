@@ -13,6 +13,7 @@ import net.imglib2.Dimensions;
 import net.imglib2.FinalDimensions;
 import net.imglib2.img.Img;
 import net.imglib2.type.logic.BitType;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -33,6 +34,11 @@ public class CalibratedAxisUtilTest {
     private static final int EXPECTED_DIMENSIONS = DIMENSIONS.numDimensions();
     private static BinaryFunctionOp<Dimensions, BitType, Img<BitType>> imgCreator;
     private static ImgPlus<BitType> testImgPlus3D;
+
+	@AfterClass
+	public static void oneTimeTearDown() {
+		IMAGE_J.context().dispose();
+	}
 
     @Test
     public void testCalibratedSpatialElementSize() throws AssertionError {

@@ -9,6 +9,7 @@ import net.imagej.ImageJ;
 import net.imagej.ops.special.function.Functions;
 import net.imagej.ops.special.function.UnaryFunctionOp;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.scijava.vecmath.Tuple3d;
@@ -31,7 +32,12 @@ public class CentroidLinAlg3DTest {
 				ImmutableList.class);
 	}
 
-	@Test (expected = NullPointerException.class)
+	@AfterClass
+	public static void oneTimeTearDown() {
+		IMAGE_J.context().dispose();
+	}
+
+	@Test(expected = NullPointerException.class)
 	public void testCentroidLinAlg3dThrowsNullPointerExceptionIfCollectionIsNull() {
 		centroidOp.compute1(null);
 	}
@@ -60,11 +66,10 @@ public class CentroidLinAlg3DTest {
 	@Test
 	public void testCentroidLinAlg3d() {
 		final Vector3d expected = new Vector3d(0.5, 0.5, 0.5);
-		final ImmutableList<Vector3d> cubeVectors = ImmutableList.of(
-                new Vector3d(0.0, 0.0, 0.0), new Vector3d(1.0, 0.0, 0.0),
-                new Vector3d(1.0, 1.0, 0.0), new Vector3d(0.0, 1.0, 0.0),
-				new Vector3d(0.0, 0.0, 1.0), new Vector3d(1.0, 0.0, 1.0),
-                new Vector3d(1.0, 1.0, 1.0), new Vector3d(0.0, 1.0, 1.0));
+		final ImmutableList<Vector3d> cubeVectors = ImmutableList.of(new Vector3d(0.0, 0.0, 0.0),
+				new Vector3d(1.0, 0.0, 0.0), new Vector3d(1.0, 1.0, 0.0), new Vector3d(0.0, 1.0, 0.0),
+				new Vector3d(0.0, 0.0, 1.0), new Vector3d(1.0, 0.0, 1.0), new Vector3d(1.0, 1.0, 1.0),
+				new Vector3d(0.0, 1.0, 1.0));
 
 		final Tuple3d result = centroidOp.compute1(cubeVectors);
 
