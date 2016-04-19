@@ -23,6 +23,7 @@ import ij.ImagePlus;
  *
  * @author Richard Domander
  * @todo Write mock Graph[] instead of running test image trough tool chain
+ * @todo Write tests for a Graph[] of a 2D image
  */
 public class TriplePointAnglesTest {
 	private static final double HALF_PI = Math.PI / 2.0;
@@ -49,7 +50,7 @@ public class TriplePointAnglesTest {
 
 		// Match op
 		triplePointAnglesOp = (BinaryFunctionOp) Functions.binary(IMAGE_J.op(), TriplePointAngles.class,
-				ImmutableList.class, Graph.class, Integer.class);
+																  ImmutableList.class, Graph.class, Integer.class);
 	}
 
 	@AfterClass
@@ -64,13 +65,13 @@ public class TriplePointAnglesTest {
 
 		final ImmutableList<ImmutableList<TriplePoint>> graphs = triplePointAnglesOp.compute2(cuboidGraphs, nthPoint);
 
-		for (int g = 0; g < graphs.size(); g++) {
-			final ImmutableList<TriplePoint> triplePoints = graphs.get(g);
-			for (int t = 0; t < triplePoints.size(); t++) {
-				final TriplePoint triplePoint = triplePoints.get(t);
-				triplePoint.angles
-						.forEach(a -> assertEquals("Triple point angle should be a right angle", HALF_PI, a, 1e-12));
-			}
+		assertEquals("Wrong number of skeletons (graphs)", 1, graphs.size());
+		final ImmutableList<TriplePoint> triplePoints = graphs.get(0);
+		assertEquals("Wrong number of triple points", 8, triplePoints.size());
+		for (int t = 0; t < triplePoints.size(); t++) {
+			final ImmutableList<Double> angles = triplePoints.get(t).angles;
+			assertEquals("Wrong number of angles", angles.size(), 3);
+			angles.forEach(a -> assertEquals("Triple point angle should be a right angle", HALF_PI, a, 1e-12));
 		}
 	}
 
@@ -78,15 +79,15 @@ public class TriplePointAnglesTest {
 	@Test
 	public void testTriplePointAnglesVertexToVertex() throws AssertionError {
 		final ImmutableList<ImmutableList<TriplePoint>> graphs = triplePointAnglesOp.compute2(cuboidGraphs,
-				TriplePointAngles.VERTEX_TO_VERTEX);
+																							  TriplePointAngles.VERTEX_TO_VERTEX);
 
-		for (int g = 0; g < graphs.size(); g++) {
-			final ImmutableList<TriplePoint> triplePoints = graphs.get(g);
-			for (int t = 0; t < triplePoints.size(); t++) {
-				final TriplePoint triplePoint = triplePoints.get(t);
-				triplePoint.angles
-						.forEach(a -> assertEquals("Triple point angle should be a right angle", HALF_PI, a, 1e-12));
-			}
+		assertEquals("Wrong number of skeletons (graphs)", 1, graphs.size());
+		final ImmutableList<TriplePoint> triplePoints = graphs.get(0);
+		assertEquals("Wrong number of triple points", 8, triplePoints.size());
+		for (int t = 0; t < triplePoints.size(); t++) {
+			final ImmutableList<Double> angles = triplePoints.get(t).angles;
+			assertEquals("Wrong number of angles", angles.size(), 3);
+			angles.forEach(a -> assertEquals("Triple point angle should be a right angle", HALF_PI, a, 1e-12));
 		}
 	}
 }
